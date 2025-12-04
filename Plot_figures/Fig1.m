@@ -187,6 +187,82 @@ yticklabels(labels);
 % Set font and font size
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 14);
 
+%% Hessian spectrum 
+% Select learning-rate index and realization index
+lr_index = 4;
+realization_index = 1;
+
+% Extract Hessian values with lr and realization fixed
+Hessian_lr_fixed = squeeze(Hessian_all(:, lr_index, realization_index, end, :));
+
+% Prepare figure
+figure('unit','points','PaperUnits','points', 'position', [100 100 500 400])
+colors = get(gca, 'ColorOrder');
+
+num_lines = size(Hessian_lr_fixed, 1);
+h = zeros(1, num_lines);
+
+% Plot Hessian diagonal entries for each batch size B
+for i = 1:num_lines
+    y_mean = Hessian_lr_fixed(i, :);
+
+    % Legend name with batch size
+    legend_name = strcat('$B = ', num2str(bs_list(i)), '$');
+
+    % Plot with log-scaled x-axis
+    h(i) = semilogx(1:2500, y_mean, '-o', ...
+                    'LineWidth', 1.0, ...
+                    'Color', colors(i, :), ...
+                    'DisplayName', legend_name);
+    hold on;
+end
+
+% Axis settings
+xlim([0 2500]);
+xticks([1 10 100 1000])
+xlabel('Index $i$', 'Interpreter', 'latex');
+ylabel('$\lambda_i(\mathbf{H})$', 'Interpreter', 'latex');
+box on;
+grid on;
+
+% Legend settings
+legend(h, 'Location', 'best', ...
+          'FontName', 'Times New Roman', ...
+          'FontSize', 16, ...
+          'Interpreter', 'latex');
+legend box on;
+
+% Global axis font settings
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 22);
+
+%% Top 10 Hessian eigenvalues ratio distribution
+% Sum of top-10 diagonal elements
+H_top10 = sum(Hessian_all(:, :, :, end, 1:10), 5);
+
+% Sum of all diagonal elements
+H_total = sum(Hessian_all(:, :, :, end, :), 5);
+
+% Ratio of top-10 contribution
+Hessian_top_10 = H_top10 ./ H_total;
+
+Convergence_mask = (Train_acc_all(:, :, :, end) == 1);
+Hessian_top_10_all = Hessian_top_10(Convergence_mask);
+
+% Plot histogram
+figure('unit','points','PaperUnits','points', 'position', [100 100 500 400])
+
+histogram(Hessian_top_10_all, ...
+          'NumBins', 15, ...            
+          'Normalization', 'probability', ... 
+          'FaceAlpha', 0.75, ...        
+          'EdgeColor', 'none');        
+
+xlabel('$\sum_{i=1}^{10}\lambda_i(\mathbf{H})/\sum_{i=1}^{2500}\lambda_i(\mathbf{H})$', 'Interpreter','latex');
+ylabel('Probability');
+yticks([0 0.2 0.4 0.6])
+set(gca, 'FontName', 'Times New Roman', 'FontSize', 22);
+
+grid on;     
 %% Define Jaccard similarity
 function similarity = jaccard_similarity(list1, list2)
     % Convert to sets (unique elements)

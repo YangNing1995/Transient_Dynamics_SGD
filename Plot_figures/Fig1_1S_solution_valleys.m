@@ -13,7 +13,7 @@ num_lr = length(lr_list);
 num_realizations = 20;
 num_timepoints = 101;
 
-%% Load Data
+%% Load data
 Data_dir = 'E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Data\Train_with_different_hyperparas\';
 
 % Pre-allocate arrays

@@ -307,7 +307,7 @@ for lc_idx = 1:length(Lc_list)
     set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
     
     % Add Title to the Plot
-    title(['$\mathcal{L}_c=' num2str(L_c) '$'], 'Interpreter', 'latex', 'FontSize', 16);
+    title(['$\mathcal{L}_c=' num2str(L_c) '$'], 'Interpreter', 'latex', 'FontSize', 20);
     
     % -------- Overlay Convergence_probability information --------
     hold on; % Hold layer

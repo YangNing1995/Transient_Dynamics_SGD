@@ -1,4 +1,4 @@
-import torch
+﻿import torch
 import numpy as np
 from scipy.io import savemat
 from model import FCN
@@ -60,7 +60,7 @@ def main(BS_list, LR_list, total_realizations):
 
 if __name__ == '__main__':
     start_time = time.time()
-    # 对每个条件最后时刻计算Hessian
+    # Compute Hessian at the final time point for each condition
     #BS_list = [1000, 500, 200, 100, 50, 20, 10]
     #BS_list = [500, 200, 100, 50, 20, 10]
     BS_list = [10]
@@ -69,4 +69,4 @@ if __name__ == '__main__':
 
     main(BS_list, LR_list, total_realizations)
     end_time = time.time()
-    print("运行时间: {:.6f} 秒".format(end_time - start_time))
+    print("Runtime: {:.6f} seconds".format(end_time - start_time))

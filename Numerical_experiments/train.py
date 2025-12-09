@@ -1,11 +1,11 @@
-import torch
+﻿import torch
 import os
 
 def train(model, device, train_loader, test_loader, criterion, optimizer, epoch, save_path, save_iterations, metrics):
-    """训练模型的一个epoch，并在指定的迭代数保存模型检查点和更新性能指标"""
+    """Train the model for one epoch, save model checkpoints at specified iterations, and update performance metrics"""
     model.train()
 
-    # 在第0个Iteration收集性能指标
+    # Collect performance metrics at iteration 0
     if epoch == 0:
         checkpoint_path = os.path.join(save_path, "iteration_0.pt")
         torch.save(model.state_dict(), checkpoint_path)
@@ -14,14 +14,14 @@ def train(model, device, train_loader, test_loader, criterion, optimizer, epoch,
         train_loss, train_accuracy = compute_metrics(model, train_loader, device, criterion)
         test_loss, test_accuracy = compute_metrics(model, test_loader, device, criterion)
         weight_list = list(model.parameters())[2].detach()  
-        wrong_indices = get_wrong_predictions(model, test_loader, device)  # 错误索引
+        wrong_indices = get_wrong_predictions(model, test_loader, device)  # Wrong prediction indices
 
         metrics['train_loss'].append(train_loss)
         metrics['test_loss'].append(test_loss)
         metrics['train_accuracy'].append(train_accuracy)
         metrics['test_accuracy'].append(test_accuracy)
-        metrics['weight_all'].append(weight_list.cpu().view(2500, -1).numpy())  # 保存权重
-        metrics['wrong_indices'].append(wrong_indices)  # 保存错误序号
+        metrics['weight_all'].append(weight_list.cpu().view(2500, -1).numpy())  # Save weights
+        metrics['wrong_indices'].append(wrong_indices)  # Save indices of wrong predictions
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -34,33 +34,33 @@ def train(model, device, train_loader, test_loader, criterion, optimizer, epoch,
         current_iteration = int(epoch * len(train_loader) + batch_idx + 1)
 
         if batch_idx % 10 == 0:
-            print(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)} ({100. * batch_idx / len(train_loader):.0f}%)]\tLoss: {loss.item():.6f}')
+            print(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)} ({100. * batch_idx / len(train_loader):.0f}%)]Loss: {loss.item():.6f}')
 
         if current_iteration in save_iterations:
-            # 保存检查点
+            # Save checkpoint
             checkpoint_path = os.path.join(save_path, f"iteration_{current_iteration}.pt")
             torch.save(model.state_dict(), checkpoint_path)
             print(f"Checkpoint saved to {checkpoint_path}")    
 
-            # 计算训练和测试集上的指标
+            # Compute metrics on train and test sets
             train_loss, train_accuracy = compute_metrics(model, train_loader, device, criterion)
             test_loss, test_accuracy = compute_metrics(model, test_loader, device, criterion)
             weight_list = list(model.parameters())[2].detach()  
-            wrong_indices = get_wrong_predictions(model, test_loader, device)  # 错误索引
+            wrong_indices = get_wrong_predictions(model, test_loader, device)  # Wrong prediction indices
 
-            # 更新性能指标列表
+            # Update performance metrics
             metrics['train_loss'].append(train_loss)
             metrics['test_loss'].append(test_loss)
             metrics['train_accuracy'].append(train_accuracy)
             metrics['test_accuracy'].append(test_accuracy)
-            metrics['weight_all'].append(weight_list.cpu().numpy().reshape(2500, -1))  # 保存权重
-            metrics['wrong_indices'].append(wrong_indices)  # 保存错误序号
+            metrics['weight_all'].append(weight_list.cpu().numpy().reshape(2500, -1))  # Save weights
+            metrics['wrong_indices'].append(wrong_indices)  # Save indices of wrong predictions
 
     return metrics
             
 
 def test(model, device, test_loader, criterion):
-    """测试模型的性能"""
+    """Test model performance"""
     model.eval()
     test_loss = 0
     correct = 0
@@ -68,8 +68,8 @@ def test(model, device, test_loader, criterion):
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += criterion(output, target).item()  # 累加批次的损失
-            pred = output.argmax(dim=1, keepdim=True)  # 获取预测最大概率的标签
+            test_loss += criterion(output, target).item()  # Accumulate loss for batches
+            pred = output.argmax(dim=1, keepdim=True)  # Get predicted labels with max probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
@@ -112,7 +112,7 @@ def get_wrong_predictions(model, data_loader, device):
             outputs = model(data)
             _, predicted = torch.max(outputs, 1)
             wrong_batch_indices = (predicted != target).nonzero(as_tuple=False).squeeze().tolist()
-            # 计算全局索引，因为每个批次的索引都是从0开始
+            # Calculate global indices since each batch's indices start from 0
             global_indices = [idx + batch_idx * data_loader.batch_size for idx in wrong_batch_indices]
             wrong_indices.extend(global_indices)
     model.train()

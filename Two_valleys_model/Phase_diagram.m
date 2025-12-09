@@ -101,8 +101,8 @@ freezing_y_mean = zeros(length(learning_rate_list), length(noise_strength_list))
 
 % --- Algorithm Parameters ---
 initial_pos = [-0.01, yi]; 
-iterations = 1e4;       % SGD Iterations
-num_repetition = 100;   % Number of repetitions
+iterations = 2e4;       % SGD Iterations
+num_repetition = 2000;   % Number of repetitions
 
 tic
 % Create linear indices for parfor efficiency

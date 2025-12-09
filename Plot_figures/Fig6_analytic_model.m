@@ -176,111 +176,93 @@ hold off;
 set(gca, 'FontName','Times New Roman', 'FontSize',22, ...
     'Box','on', 'XScale','log');
 
-%% Fig6C: Numerically solve transcendental equation for freezing point vs noise
-% === Parameter Settings ===
-% f_ratio_list = [1.1; 1.3; 1.5];
-f_ratio_list = [1.1; 1.2; 1.3];
-Delta_s_values = logspace(-6, -3, 100); % Range of Delta_s
-Epsilon = 0.2;
+%% Fig6C. Visualization of P_flat^tr,SGD Surface
+% Model Parameters
+x2 = 0.65;          % Sharp valley width parameter (base)
+x0 = 1;
+f0 = 1;
+y_b = 30;
+y_f = 20;
+y_d = 100;
+L_d = 1;
+epsilon = 1e-1;     % Small constant epsilon (permissible deviation)
 
-% Initialize result matrices
-y_solutions = zeros(length(f_ratio_list), length(Delta_s_values));
-P_solutions = zeros(length(f_ratio_list), length(Delta_s_values));
+% Define Grid for Independent Variables
+% Delta_S: Product of learning rate and noise strength (Log scale)
+dS_vals = logspace(-6, 0, 50); 
 
-% === Main Loop ===
-for n = 1:length(f_ratio_list)
-    f_ratio = f_ratio_list(n);
-    
-    % Re-define parameters locally based on f_ratio
-    x0 = 1;
-    f0 = 1;
-    y_b = 30;
-    y_f = 20;
-    y_d = 100;
-    L_d = 1;
-    x2 = 0.65;
-    x1 = sqrt(x2^2 * f_ratio);
-    
-    % ----- Define component functions -----
-    g1 = @(y) 2*x1.*y./(y + y_b);
-    g2 = @(y) 2*x2.*y./(y + y_b);
-    
-    f1 = @(y) f0.*(x1.^2/x0.^2).*((y + y_f).^2./(y + y_b).^2);
-    f2 = @(y) f0.*(x2.^2/x0.^2).*((y + y_f).^2./(y + y_b).^2);
-    
-    L0 = @(y) L_d.*exp(-y/y_d) + x0^2/f0;  % Base loss drift term
-    
-    % ----- Define piecewise loss L(x,y) -----
-    L = @(x, y) arrayfun(@(xx) ...
-        L0(y) + (xx>=0)*xx.*(xx - g1(y))./f1(y) + ...
-        (xx<0)*xx.*(xx + g2(y))./f2(y), x);
-    
-    % Theoretical Probability P_flat
-    P = @(delta_s, y) (1 + (x2/x1) .* exp(-(y./(y + y_b)).^2 .* ...
-              (x1^2 - x2^2) ./ (2 * delta_s)) ).^(-1);
-          
-    for i = 1:length(Delta_s_values)
-        Delta_s = Delta_s_values(i);
-        
-        % Define equation: right - left = 0
-        fun = @(y) compute_difference(y, Delta_s, f1, f2, g1, g2, ...
-                                      L, L_d, y_d, x0, y_f, f0, x1, x2, y_b, Epsilon);
-                                  
-        % Multi-start search
-        y_guesses = linspace(1, 100, 50);
-        y_sol = NaN;
-        for k = 1:length(y_guesses)
-            try
-                y_try = fzero(fun, y_guesses(k));
-                if y_try > 0
-                    y_sol = y_try;
-                    break;  % Exit immediately if a positive solution is found
-                end
-            catch
-                continue
-            end
-        end
-        
-        % If no valid solution, set to a large value
-        if isnan(y_sol)
-            y_solutions(n, i) = 1e8;
-        else
-            y_solutions(n, i) = y_sol;
-        end
-    end
-    P_solutions(n, :) = P(Delta_s_values, y_solutions(n, :));
-end
+% Gamma: Flatness ratio f1/f2 = x1^2/x2^2 (Linear scale, >1)
+gamma_vals = linspace(1.0, 1.2, 50); 
 
-% === Plotting ===
-custom_colors = [
-    0.00, 0.45, 0.74;  % Blue
-    0.85, 0.33, 0.10;  % Orange
-    0.47, 0.67, 0.19   % Green
-];
-alpha_val = 0.8;  % Transparency
-line_width = 2.2;
+[Delta_S, Gamma] = meshgrid(dS_vals, gamma_vals);
 
-figure('Units', 'points', 'PaperUnits', 'points', ...
-       'Position', [100 100 500 400]);
-hold on
-for i = 1:length(f_ratio_list)
-    semilogx(Delta_s_values, P_solutions(i, :), ...
-        'Color', [custom_colors(i,:) alpha_val], ...
-        'LineWidth', line_width, ...
-        'DisplayName', sprintf('$\\gamma = %.1f$', f_ratio_list(i)));
-end
+% Calculate Intermediate Variable Phi
+% Note: Phi depends on (x1^2 - x2^2).
+diff_x2 = x2^2 .* (Gamma - 1); 
 
-% === Figure Format Settings ===
-xlabel('$\Delta_s$', 'FontSize', 20, 'Interpreter', 'LaTeX');
-ylabel('$P_\mathrm{flat}^\mathrm{tr}$', 'FontSize', 20, 'Interpreter', 'LaTeX');
-% ylim([0.5 0.9]) % Slightly raise the upper limit of y-axis to avoid overlap between lines and border
-yticks([0.5 0.7 0.9])
-set(gca, 'FontName', 'Times New Roman', 'FontSize', 22, ...
-         'Box', 'on', 'XScale', 'log');
-% xlim([1e-4 1e-2]);
+% Calculate Phi based on the derived approximation
+% Phi approx = [2(x1^2 - x2^2) / 27 y_b] * [L_d/y_d + 8 x0^2 / 27 y_f]
+term1 = (2 .* diff_x2) ./ (27 * y_b);
+term2 = (L_d / y_d) + (8 * x0^2) / (27 * y_f);
+Phi = term1 .* term2;
+
+% Calculate Probability P
+% Eq: P = [ 1 + gamma^(-0.5) * ( sqrt(Delta_S) / (epsilon * Phi) )^(1-gamma) ]^(-1)
+
+Numerator_Inside_Log = sqrt(Delta_S);
+Denominator_Inside_Log = epsilon .* Phi;
+Base_Term = Numerator_Inside_Log ./ Denominator_Inside_Log;
+
+Exponent = 1 - Gamma;
+Prefactor = Gamma.^(-0.5);
+
+% Combine to get final probability
+P_flat_tr = (1 + Prefactor .* (Base_Term .^ Exponent)).^(-1);
+
+% Plotting
+figure('Units', 'points', 'Position', [100, 100, 500, 400]);
+
+% Draw Surface
+s = surf(Gamma, Delta_S, P_flat_tr);
+
+% Appearance Settings
+s.EdgeColor = 'none';       % Remove grid lines
+s.FaceColor = 'interp';     % Interpolated shading
+colormap(parula);           
+
+% --- Axis Settings ---
+set(gca, 'YScale', 'log');  % Log scale for Delta_S
+ylim([min(dS_vals), max(dS_vals)]);
+xlim([min(gamma_vals), max(gamma_vals)]);
+yticks([1e-6, 1e-3, 1])
+xticks([1, 1.1, 1.2])
+axis square
+
+% Define Z-axis limits and ticks (to be shared with Colorbar)
+z_limits = [0.45, 1];
+z_ticks  = [0.5, 0.75, 1];
+
+% Apply to Z-axis
+zlim(z_limits);
+zticks(z_ticks);
+
+% --- Labels ---
+ylabel('$\Delta_S$', 'Interpreter', 'latex', 'FontSize', 16);
+xlabel('$\gamma = f_1/f_2$', 'Interpreter', 'latex', 'FontSize', 16);
+zlabel('$P_{\mathrm{flat}}^{\mathrm{tr,SGD}}$', 'Interpreter', 'latex', 'FontSize', 16);
+
+% --- View and Grid ---
+view(-40, 25);
 grid on;
-legend('Location', 'best', 'Interpreter', 'LaTeX', 'Box', 'on','FontSize', 22);
-hold off;
+box on;
+
+% --- Colorbar Settings (Synced with Z-axis) ---
+cb = colorbar;
+clim(z_limits);         % Set color data limits to match Z-axis limits
+cb.Ticks = z_ticks;     % Set colorbar ticks to match Z-axis ticks
+
+% Font Settings
+set(gca, 'FontName', 'Times New Roman', 'FontSize', 18);
 
 %% Helper Functions
 function rate = NESS_escape_rate(x_start, y_trajectory, f1, f2, g1, g2, Loss, Delta_s)
@@ -335,33 +317,4 @@ function rate = ESS_escape_rate(x_start, y_trajectory, f1, f2, g1, g2, Loss, Del
             rate(t_idx) = 1/((pi/2) * f_val * erfi(sqrt((L_barrier - L_min) / (2*Delta_s/fi))));
         end
     end
-end
-
-function diff = compute_difference(y, Delta_s, f1, f2, g1, g2, L, L_d, y_d, x0, y_f, f0, x1, x2, y_b, Epsilon)
-    % Calculate Delta L with protection
-    deltaL = L(0,y) - L(g1(y)/2, y);
-    if deltaL <= 0
-        diff = NaN; return;
-    end
-    
-    % Limit exponential range to prevent overflow
-    exp1 = -(deltaL * f1(y)) / (2*Delta_s);
-    exp2 = -(deltaL * f2(y)) / (2*Delta_s);
-    exp1 = max(min(exp1, 700), -700);
-    exp2 = max(min(exp2, 700), -700);
-    
-    % Calculate rates
-    k_f = sqrt(abs(2*deltaL / (pi * f1(y) * Delta_s))) * exp(exp1);
-    k_s = sqrt(abs(2*deltaL / (pi * f2(y) * Delta_s))) * exp(exp2);
-    
-    % Derivative parts
-    dydt = L_d/y_d * exp(-y/y_d) + 2*x0^2*y_f*y/(f0*(y+y_f)^3);
-    dbardy = (x1^2 - x2^2)*y_b*y/(y+y_b)^3;
-    
-    % Both sides of the equation
-    right = dydt .* dbardy;
-    left = (1 + k_f./k_s).*(2*k_s.^2*Delta_s)./k_f/Epsilon;
-    
-    % Normalized difference
-    diff = right - left;
 end

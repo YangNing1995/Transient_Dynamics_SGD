@@ -1,4 +1,4 @@
-import torch
+﻿import torch
 import os
 import numpy as np
 import scipy
@@ -8,7 +8,7 @@ from data_utils import get_data_loaders
 from train import train
 
 def parse_args():
-    """解析命令行参数"""
+    """Parse command-line arguments"""
     parser = ArgumentParser(description="Image Classifier with Small Sample Training")
     parser.add_argument('--dataset_name', type=str, default='MNIST', help='Name of dataset')
     parser.add_argument('--total_iterations', type=int, default=1000, help='Total training iterations')
@@ -47,12 +47,12 @@ def main():
     # Training loop
     total_epochs = int(args.total_iterations * args.batch_size / (args.train_num * 10))
 
-    # 保存前100个Iteration及total_iterations均匀分为100时间点
+    # Save the first 100 iterations and divide total_iterations into 100 time points
     save_iterations = set(range(1, 101))  
     save_iterations.update(np.linspace(0, args.total_iterations, 101, dtype=int))
     sorted_save_iterations = sorted(save_iterations)
 
-    # 保存指标
+    # Save metrics
     metrics = {
         'train_loss': [],
         'test_loss': [],

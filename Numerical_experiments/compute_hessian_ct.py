@@ -1,9 +1,10 @@
-import torch
+﻿import torch
 import numpy as np
 from scipy.io import savemat
 from model import FCN
 from data_utils import get_data_loaders
 import time
+import os
 
 def jacobian(y, x, create_graph=False):                                                               
     jac = []                                                                                          
@@ -55,7 +56,7 @@ def main(load_batch_size, load_learning_rate, load_realization, load_iteration_l
             H_eig = torch.linalg.eig(H)[0].cpu().numpy()
             H_save[:, i] = H_eig  
 
-        print(f'Sucessfully compute Hessian for iteration={load_iteration}, LR={learning_rate}, Repeat{realization}')
+        print(f'Sucessfully compute Hessian for iteration={load_iteration}, LR={load_learning_rate}, Repeat{load_realization}')
         savemat(f'{save_data_dir}/save_metrics_ct{load_iteration}.mat', {'Hessian': H_save})
 
 if __name__ == '__main__':
@@ -69,4 +70,4 @@ if __name__ == '__main__':
 
     main(load_batch_size, load_learning_rate, load_realization, load_iteration_list, total_iterations)
     end_time = time.time()
-    print("运行时间: {:.6f} 秒".format(end_time - start_time))
+    print("Runtime: {:.6f} seconds".format(end_time - start_time))

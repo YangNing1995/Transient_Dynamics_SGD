@@ -13,10 +13,8 @@ def jacobian(y, x, create_graph=False):
         grad_y[i] = 1.                                                                                
         grad_x, = torch.autograd.grad(flat_y, x, grad_y, retain_graph=True, create_graph=create_graph)
         jac.append(grad_x.flatten())
-        #jac.append(grad_x.reshape(x.shape)) 
-        #print(y.shape + x.shape)
         grad_y[i] = 0.                                                                                
-    return torch.stack(jac)#.reshape(y.shape + x.shape)      
+    return torch.stack(jac)   
 
 def hessian(y, x):                                                                                    
     return jacobian(jacobian(y, x, create_graph=True), x)  
@@ -44,19 +42,19 @@ def main(BS_list, LR_list, total_realizations):
                 for i in range(len(time_points)):
                     t = time_points[i]
                     load_dir = f'bs{batch_size}_lr{learning_rate}_repeat{realization}'
-                    load_path = f'../save_checkpoint_v2/{load_dir}/iteration_{t}.pt'
+                    load_path = f'./save_checkpoint/{load_dir}/iteration_{t}.pt'
                     model.load_state_dict(torch.load(load_path))
                     Train_output = model(Train_data)
                     Train_loss = criterion(Train_output, Train_target)
                     weight_list = list(model.parameters())[2]
 
                     # Hessian
-                    H = hessian(Train_loss, weight_list)  # compute Hessian  
+                    H = hessian(Train_loss, weight_list)    
                     H_eig = torch.linalg.eig(H)[0].cpu().numpy()
                     H_save[:, i] = H_eig  
 
                 print(f'Sucessfully compute Hessian for BS={batch_size}, LR={learning_rate}, Repeat{realization}')
-                savemat(f'../save_data_v2/bs{batch_size}_lr{learning_rate}/save_hessian_repeat{realization}.mat', {'Hessian': H_save})
+                savemat(f'./save_data/bs{batch_size}_lr{learning_rate}/save_hessian_repeat{realization}.mat', {'Hessian': H_save})
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -64,7 +62,7 @@ if __name__ == '__main__':
     #BS_list = [1000, 500, 200, 100, 50, 20, 10]
     #BS_list = [500, 200, 100, 50, 20, 10]
     BS_list = [10]
-    LR_list = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+    LR_list = [0.01]
     total_realizations = 20
 
     main(BS_list, LR_list, total_realizations)

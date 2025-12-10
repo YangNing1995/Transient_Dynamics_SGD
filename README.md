@@ -37,7 +37,10 @@ python -c "import os, sys; sys.path.insert(0, os.path.abspath(os.getcwd())); fro
 Run example training (from repo root):
 
 \\\powershell
-python Numerical_experiments/main.py --dataset_name MNIST --total_iterations 100 --batch_size 100
+cd ./Numerical_experiments
+python run_repeat.py --batch_size 10 --learning_rate 0.01 --total_iterations 10000
+
 \\\
 
-If you want pinned versions for reproducibility, tell me which Python and CUDA version you plan to use and I will update \equirements.txt\ accordingly.
+If you want pinned versions for reproducibility, tell me which Python and CUDA version you plan to use and I will update \
+equirements.txt\ accordingly.

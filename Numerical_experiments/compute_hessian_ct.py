@@ -34,10 +34,10 @@ def main(load_batch_size, load_learning_rate, load_realization, load_iteration_l
     model = FCN(50).to(device)
     criterion = torch.nn.CrossEntropyLoss()
 
-    save_data_dir = os.path.join(f"../save_data_continue_training", f"bs{load_batch_size}_lr{load_learning_rate}_repeat{load_realization}_ct")
+    save_data_dir = os.path.join(f"./save_data_continue_training", f"bs{load_batch_size}_lr{load_learning_rate}_repeat{load_realization}_ct")
 
     for load_iteration in load_iteration_list:
-        load_checkpoint_dir = os.path.join(f"../save_checkpoint_continue_training", f"bs{load_batch_size}_lr{load_learning_rate}_repeat{load_realization}_ct{load_iteration}")
+        load_checkpoint_dir = os.path.join(f"./save_checkpoint_continue_training", f"bs{load_batch_size}_lr{load_learning_rate}_repeat{load_realization}_ct{load_iteration}")
 
         time_points = np.linspace(0, total_iterations, 101)
         time_points = np.round(time_points).astype(int)

@@ -17,8 +17,8 @@ def parse_args():
     parser.add_argument('--test_num', type=int, default=20, help='Number of samples per class in test set')
     parser.add_argument('--batch_size', type=int, default=100, help='Batch size for training')
     parser.add_argument('--learning_rate', type=float, default=0.1, help='Learning rate')
-    parser.add_argument('--save_checkpoint_dir', type=str, default='../save_checkpoint_v2', help='Directory to save checkpoints')
-    parser.add_argument('--save_data_dir', type=str, default='../save_data_v2', help='Directory to save results')
+    parser.add_argument('--save_checkpoint_dir', type=str, default='./save_checkpoint', help='Directory to save checkpoints')
+    parser.add_argument('--save_data_dir', type=str, default='./save_data', help='Directory to save results')
     parser.add_argument('--total_realizations', type=int, default=20, help='Number of realizations for one set of hyperparameters')
     return parser.parse_args()
 

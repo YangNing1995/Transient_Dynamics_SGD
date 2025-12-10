@@ -27,7 +27,7 @@ def get_dataset(dataset_name, train=True, transform=None, train_num=100, test_nu
     else:
         raise ValueError("Unsupported dataset")
 
-    dataset = dataset_class(root=f'../Numerical_experiments/data', train=train, download=True, transform=transform)
+    dataset = dataset_class(root=f'./data', train=train, download=True, transform=transform)
     subset_indices = []
 
     for i in range(10):  # Applicable to 10-class datasets; adjust if the number of classes differs

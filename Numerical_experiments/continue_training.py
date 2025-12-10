@@ -18,13 +18,13 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=1000, help='Batch size for training')
     parser.add_argument('--learning_rate', type=float, default=0.05, help='Learning rate')
 
-    parser.add_argument('--load_checkpoint_dir', type=str, default='../save_checkpoint_v2', help='Directory to load checkpoints')
+    parser.add_argument('--load_checkpoint_dir', type=str, default='./save_checkpoint', help='Directory to load checkpoints')
     parser.add_argument('--load_batch_size', type=int, default=50, help='Batch size to load for continue training')
     parser.add_argument('--load_learning_rate', type=int, default=0.05, help='Learning rate to load for continue training')
     parser.add_argument('--load_realization', type=int, default=14, help='Realization index to load for continue training')
     parser.add_argument('--load_iteration_list', nargs='+', type=int, default=list(range(0, 1001, 20)), help='Iterations to load for continue training (e.g., "0 20 1000")')
-    parser.add_argument('--save_checkpoint_dir', type=str, default='../save_checkpoint_continue_training', help='Directory to save checkpoints')
-    parser.add_argument('--save_data_dir', type=str, default='../save_data_continue_training', help='Directory to save results')
+    parser.add_argument('--save_checkpoint_dir', type=str, default='./save_checkpoint_continue_training', help='Directory to save checkpoints')
+    parser.add_argument('--save_data_dir', type=str, default='./save_data_continue_training', help='Directory to save results')
 
     return parser.parse_args()
 

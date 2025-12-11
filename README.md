@@ -39,6 +39,9 @@ Run example training (from repo root):
 \\\powershell
 cd ./Numerical_experiments
 python run_repeat.py --batch_size 10 --learning_rate 0.01 --total_iterations 10000
+python continue_training.py --batch_size 1000 --learning_rate 0.05 --total_iterations 2000 --load_batch_size 50 --load_learning_rate 0.05 --load_realization 1 --load_iteration_list list(range(0, 1001, 20))
+
+python continue_training.py --batch_size 1000 --learning_rate 0.01 --total_iterations 10000 --load_batch_size 10 --load_learning_rate 0.01 --load_realization 1 --load_iteration_list list(range(0, 5001, 500))
 
 \\\
 

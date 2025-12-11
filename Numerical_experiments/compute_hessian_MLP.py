@@ -107,10 +107,8 @@ def main(BS_list, LR_list, total_realizations):
 if __name__ == '__main__':
     start_time = time.time()
 
-    #BS_list = [1000, 500, 200, 100, 50, 20, 10]
-    #BS_list = [500, 200, 100, 50, 20, 10]
-    BS_list = [10]
-    LR_list = [0.01]
+    BS_list = [1000, 500, 200, 100, 50, 20, 10]
+    LR_list = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
     total_realizations = 20
 
     main(BS_list, LR_list, total_realizations)

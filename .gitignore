@@ -210,3 +210,5 @@ __marimo__/
 Numerical_experiments/data/
 Numerical_experiments/save_data/
 Numerical_experiments/save_checkpoint/
+Numerical_experiments/save_checkpoint_continue_training/
+Numerical_experiments/save_data_continue_training/

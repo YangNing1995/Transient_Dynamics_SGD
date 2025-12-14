@@ -33,15 +33,32 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    if args.train_num is None or args.train_num == -1:
+        if args.dataset_name == 'MNIST':
+            args.train_num = 6000  
+        elif args.dataset_name == 'CIFAR10':
+            args.train_num = 5000  
+        else:
+            print(f"Warning: Unknown dataset {args.dataset_name}, skipping auto-size for train_num.")
+        
+        print(f"Auto-configured train_num to max per class: {args.train_num}")
+
     # Setup data loaders
     train_loader, test_loader = get_data_loaders(args.dataset_name, args.train_num, args.test_num, args.batch_size)
 
     # Initialize the model
-    model = FCN(args.hidden_num).to(device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate)
+    if args.dataset_name == 'MNIST':
+        input_dim = 784   # 28 * 28 * 1
+    elif args.dataset_name == 'CIFAR10':
+        input_dim = 3072  # 32 * 32 * 3
+    else:
+        input_dim = 784   
+    model = FCN(input_dim=input_dim, hidden=args.hidden_num).to(device)
     criterion = torch.nn.CrossEntropyLoss()
 
     for load_iteration in args.load_iteration_list:
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate)
+
         # Ensure the checkpoint and data directory exists
         save_checkpoint_dir = os.path.join(args.save_checkpoint_dir, f"bs{args.load_batch_size}_lr{args.load_learning_rate}_repeat{args.load_realization}_ct{load_iteration}")
         save_data_dir = os.path.join(args.save_data_dir, f"bs{args.load_batch_size}_lr{args.load_learning_rate}_repeat{args.load_realization}_ct")
@@ -53,7 +70,8 @@ def main():
         model.load_state_dict(torch.load(load_checkpoint_path))
 
         # Training loop
-        total_epochs = int(args.total_iterations * args.batch_size / (args.train_num * 10))
+        samples_per_epoch = args.train_num * 10
+        total_epochs = int(np.ceil(args.total_iterations * args.batch_size / samples_per_epoch))
 
         # Divide total_iterations into 100 time points
         save_iterations = np.linspace(0, args.total_iterations, 101, dtype=int)

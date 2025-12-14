@@ -3,7 +3,7 @@ import numpy as np
 from scipy.io import savemat
 from model import FCN
 from data_utils import get_data_loaders
-from torch.func import functional_call, hessian  
+from torch.func import functional_call, hessian 
 import time
 
 # --- Disable TF32 to prevent numerical overflow (Critical for Hessian) ---
@@ -13,25 +13,49 @@ torch.backends.cudnn.allow_tf32 = False
 def compute_loss_stateless(params, model, data, target, criterion):
     """
     A pure function to compute loss using functional_call.
-    This allows us to evaluate the model using any set of parameters 'params'
-    without modifying the global model instance state.
     """
     # functional_call performs a forward pass using 'params' instead of model.parameters()
     output = functional_call(model, params, (data,))
     return criterion(output, target)
 
-def main(BS_list, LR_list, total_realizations):
+# --- Modified: Added train_num and test_num as arguments ---
+def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=100, test_num=20):
     # Use CUDA if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+    print(f"Current Dataset: {dataset_name}")
 
-    # Prepare Data
-    train_loader, _ = get_data_loaders('MNIST', 100, 20, 1000)
+    # --- 1. Handle train_num for Full Dataset (-1 or None) ---
+    if train_num is None or train_num == -1:
+        if dataset_name == 'MNIST':
+            train_num = 6000  # Max per class for MNIST
+        elif dataset_name == 'CIFAR10':
+            train_num = 5000  # Max per class for CIFAR10
+        print(f"Auto-configured train_num to max per class: {train_num}")
+
+    # --- 2. Determine Input Dimension based on Dataset ---
+    if dataset_name == 'MNIST':
+        input_dim = 784   # 28x28x1
+    elif dataset_name == 'CIFAR10':
+        input_dim = 3072  # 32x32x3
+    else:
+        raise ValueError(f"Unsupported dataset: {dataset_name}")
+
+    # --- 3. Prepare Data ---
+    # We use a large batch size (e.g., 1000) for Hessian calculation to get a stable estimate
+    # If train_num is small (e.g., 100 total samples), the loader will just return all of them.
+    hessian_calc_batch_size = 1000
+    
+    # Pass train_num and test_num to get_data_loaders
+    train_loader, _ = get_data_loaders(dataset_name, train_num, test_num, hessian_calc_batch_size)
+    
+    # Get a single batch for Hessian calculation
     Train_data, Train_target = next(iter(train_loader))
     Train_data, Train_target = Train_data.to(device), Train_target.to(device)
+    print(f"Data shape for Hessian calculation: {Train_data.shape}")
 
-    # Initialize Model and Criterion
-    model = FCN(50).to(device)
+    # --- 4. Initialize Model ---
+    model = FCN(input_dim=input_dim, hidden=50).to(device)
     criterion = torch.nn.CrossEntropyLoss()
 
     # Identify the specific layer name for Hessian calculation
@@ -80,7 +104,6 @@ def main(BS_list, LR_list, total_realizations):
                     H = H.reshape(target_weight.numel(), target_weight.numel())
                     
                     # 2. Move to CPU immediately for safe solving
-                    # This avoids 'cusolver' crashes and frees up VRAM
                     H_cpu = H.detach().cpu()
                     
                     # 3. Safety Check for NaNs/Infs
@@ -91,6 +114,7 @@ def main(BS_list, LR_list, total_realizations):
 
                     # 4. Solve Eigenvalues on CPU (Stable & Fast enough)
                     try:
+                        # [::-1] ensures Descending order (Largest to Smallest)
                         H_eig = torch.linalg.eigvalsh(H_cpu).numpy()[::-1]
                         H_save[:, i] = H_eig
                     except RuntimeError as e:
@@ -101,17 +125,24 @@ def main(BS_list, LR_list, total_realizations):
                 
                 # Save results
                 save_path = f'./save_data/bs{batch_size}_lr{learning_rate}/save_hessian_repeat{realization}.mat'
-                # Ensure directory exists if needed, or assume it exists
                 savemat(save_path, {'Hessian': H_save})
 
 if __name__ == '__main__':
     start_time = time.time()
 
-    BS_list = [1000, 500, 200, 100, 50, 20, 10]
-    LR_list = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
-    total_realizations = 20
-
-    main(BS_list, LR_list, total_realizations)
+    # --- Parameter Configuration ---
+    BS_list = [50]
+    LR_list = [0.01]
+    total_realizations = 5
+    
+    # Dataset and Size Configuration
+    dataset_name = 'MNIST'   # Options: 'MNIST', 'CIFAR10'
+    train_num = -1          # Number of samples per class (or -1 for full dataset)
+    test_num = -1            # Number of test samples per class
+    # total_iterations = 500000   # Number of test samples per class
+    
+    # Run Main
+    main(BS_list, LR_list, total_realizations, dataset_name, train_num, test_num)
     
     end_time = time.time()
     print("Runtime: {:.6f} seconds".format(end_time - start_time))

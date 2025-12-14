@@ -209,6 +209,8 @@ __marimo__/
 # ignore dataset files
 Numerical_experiments/data/
 Numerical_experiments/save_data/
+Numerical_experiments/save_data_cnn/
 Numerical_experiments/save_checkpoint/
+Numerical_experiments/save_checkpoint_cnn/
 Numerical_experiments/save_checkpoint_continue_training/
 Numerical_experiments/save_data_continue_training/

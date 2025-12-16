@@ -1,10 +1,12 @@
 import torch
 import numpy as np
 from scipy.io import savemat
-from model import FCN
+from argparse import ArgumentParser
+import os
+import time
+from model import SimpleCNN  # Change 1: Import SimpleCNN
 from data_utils import get_data_loaders
 from torch.func import functional_call, hessian 
-import time
 
 # --- Disable TF32 to prevent numerical overflow (Critical for Hessian) ---
 torch.backends.cuda.matmul.allow_tf32 = False
@@ -18,8 +20,7 @@ def compute_loss_stateless(params, model, data, target, criterion):
     output = functional_call(model, params, (data,))
     return criterion(output, target)
 
-# --- Modified: Added train_num and test_num as arguments ---
-def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=100, test_num=20):
+def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=100, test_num=20, hidden_num=50):
     # Use CUDA if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -42,50 +43,76 @@ def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=1
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
     # --- 3. Prepare Data ---
-    # We use a large batch size (e.g., 1000) for Hessian calculation to get a stable estimate
-    # If train_num is small (e.g., 100 total samples), the loader will just return all of them.
+    # We use a large batch size for Hessian calculation
     hessian_calc_batch_size = 1000
     
-    # Pass train_num and test_num to get_data_loaders
     train_loader, _ = get_data_loaders(dataset_name, train_num, test_num, hessian_calc_batch_size)
     
     # Get a single batch for Hessian calculation
+    # (Note: For strictly correct full-dataset Hessian, you should use the batch accumulation method 
+    # provided in previous answers. Here we use a single large batch as per your template.)
     Train_data, Train_target = next(iter(train_loader))
     Train_data, Train_target = Train_data.to(device), Train_target.to(device)
     print(f"Data shape for Hessian calculation: {Train_data.shape}")
 
-    # --- 4. Initialize Model ---
-    model = FCN(input_dim=input_dim, hidden=50).to(device)
+    # --- 4. Initialize Model (SimpleCNN) ---
+    # Change 2: Use SimpleCNN
+    model = SimpleCNN(input_dim=input_dim, hidden=hidden_num).to(device)
     criterion = torch.nn.CrossEntropyLoss()
 
-    # Identify the specific layer name for Hessian calculation
-    param_names = list(model.state_dict().keys())
-    target_layer_name = param_names[2] 
+    # --- 5. Identify the Specific Target Layer ---
+    # User Request: "The weight from the last hidden layer to the output node"
+    # Structure of SimpleCNN.classifier:
+    # [0] Flatten -> [1] Linear(Feature, Hidden) -> [2] ReLU -> [3] Linear(Hidden, Output)
+    # The weight we want is at index [3].
+    target_layer_name = 'classifier.3.weight'
+    
+    # Verify the layer exists
+    params = dict(model.named_parameters())
+    if target_layer_name not in params:
+        # Fallback logic if naming is different
+        print(f"Warning: {target_layer_name} not found. Available keys: {list(params.keys())}")
+        # Try to find the last weight parameter automatically
+        target_layer_name = list(params.keys())[-2] # Usually the last weight (before bias)
+    
+    target_weight = params[target_layer_name]
+    num_params = target_weight.numel() # Get total number of elements (e.g., 50*10 = 500)
+    
     print(f"Calculating Hessian for layer: {target_layer_name}")
+    print(f"Parameter shape: {target_weight.shape}, Total elements: {num_params}")
 
     for batch_size in BS_list:
         for learning_rate in LR_list:
             for realization in range(1, total_realizations + 1):
                 
                 # Setup time points
-                max_iteration = int(100 / learning_rate)
+                max_iteration = int(1000 / learning_rate)
                 time_points = np.linspace(0, max_iteration, 101)
                 time_points = np.round(time_points).astype(int)
                 
-                # Initialize storage for eigenvalues
-                H_save = np.zeros([2500, 101], dtype=np.float32)
+                # --- Change 3: Dynamic Array Size ---
+                # Initialize storage for eigenvalues using dynamic 'num_params' instead of hardcoded 2500
+                H_save = np.zeros([num_params, 101], dtype=np.float32)
 
                 for i, t in enumerate(time_points):
+                    # Note: Ensure these checkpoint directories match your training script's naming (e.g. _cnn suffix)
+                    # If you saved them in 'save_checkpoint_cnn', change the path below accordingly.
                     load_dir = f'bs{batch_size}_lr{learning_rate}_repeat{realization}'
-                    load_path = f'./save_checkpoint/{load_dir}/iteration_{t}.pt'
+                    load_path = f'./save_checkpoint_cnn/{load_dir}/iteration_{t}.pt' 
                     
                     # Load the model state
                     try:
                         state_dict = torch.load(load_path)
                         model.load_state_dict(state_dict)
                     except FileNotFoundError:
-                        print(f"Warning: Checkpoint not found at {load_path}")
-                        continue
+                        # Fallback to check default dir if _cnn dir fails
+                        load_path_alt = f'./save_checkpoint/{load_dir}/iteration_{t}.pt'
+                        try:
+                            state_dict = torch.load(load_path_alt)
+                            model.load_state_dict(state_dict)
+                        except FileNotFoundError:
+                            print(f"Warning: Checkpoint not found at {load_path}")
+                            continue
                     
                     # Prepare the parameter dictionary
                     params = dict(model.named_parameters())
@@ -99,22 +126,21 @@ def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=1
                     # --- Compute Hessian Efficiently on GPU ---
                     target_weight = params[target_layer_name]
                     
-                    # 1. Compute Hessian (Heavy computation happens on GPU)
+                    # 1. Compute Hessian
                     H = hessian(loss_wrt_target_layer)(target_weight)
                     H = H.reshape(target_weight.numel(), target_weight.numel())
                     
-                    # 2. Move to CPU immediately for safe solving
+                    # 2. Move to CPU
                     H_cpu = H.detach().cpu()
                     
-                    # 3. Safety Check for NaNs/Infs
+                    # 3. Safety Check
                     if torch.isnan(H_cpu).any() or torch.isinf(H_cpu).any():
                         print(f"Warning: Hessian contains NaNs/Infs at BS={batch_size}, T={t}. Skipping.")
                         H_save[:, i] = np.nan
                         continue
 
-                    # 4. Solve Eigenvalues on CPU (Stable & Fast enough)
+                    # 4. Solve Eigenvalues
                     try:
-                        # [::-1] ensures Descending order (Largest to Smallest)
                         H_eig = torch.linalg.eigvalsh(H_cpu).numpy()[::-1]
                         H_save[:, i] = H_eig
                     except RuntimeError as e:
@@ -124,24 +150,30 @@ def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=1
                 print(f'Successfully computed Hessian for BS={batch_size}, LR={learning_rate}, Repeat={realization}')
                 
                 # Save results
-                save_path = f'./save_data/bs{batch_size}_lr{learning_rate}/save_hessian_repeat{realization}.mat'
+                # Ensure this output directory matches your preference
+                save_dir_root = './save_data_cnn'
+                save_dir_sub = os.path.join(save_dir_root, f'bs{batch_size}_lr{learning_rate}')
+                os.makedirs(save_dir_sub, exist_ok=True)
+                
+                save_path = os.path.join(save_dir_sub, f'save_hessian_repeat{realization}.mat')
                 savemat(save_path, {'Hessian': H_save})
 
 if __name__ == '__main__':
     start_time = time.time()
 
     # --- Parameter Configuration ---
-    BS_list = [50]
+    BS_list = [100]
     LR_list = [0.01]
-    total_realizations = 5
+    total_realizations = 1
     
     # Dataset and Size Configuration
-    dataset_name = 'MNIST'   # Options: 'MNIST', 'CIFAR10'
-    train_num = -1          # Number of samples per class (or -1 for full dataset)
-    test_num = -1            # Number of test samples per class
+    dataset_name = 'CIFAR10'   # Options: 'MNIST', 'CIFAR10'
+    train_num = -1           # -1 for full dataset
+    test_num = -1           
+    hidden_num = 128          # Ensure this matches what you used in training!
     
     # Run Main
-    main(BS_list, LR_list, total_realizations, dataset_name, train_num, test_num)
+    main(BS_list, LR_list, total_realizations, dataset_name, train_num, test_num, hidden_num)
     
     end_time = time.time()
     print("Runtime: {:.6f} seconds".format(end_time - start_time))

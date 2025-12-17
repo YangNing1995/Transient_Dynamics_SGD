@@ -162,9 +162,9 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # --- Parameter Configuration ---
-    BS_list = [100]
-    LR_list = [0.01]
-    total_realizations = 1
+    BS_list = [500, 200, 100, 50, 20]
+    LR_list = [0.002, 0.005, 0.01, 0.02, 0.05]
+    total_realizations = 10
     
     # Dataset and Size Configuration
     dataset_name = 'CIFAR10'   # Options: 'MNIST', 'CIFAR10'

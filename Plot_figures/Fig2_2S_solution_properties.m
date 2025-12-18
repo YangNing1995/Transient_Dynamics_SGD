@@ -295,7 +295,7 @@ view(270, 90);  % Rotate view by 90 degrees to make the plot horizontal
 ax = gca;
 ax.Position = [0.33, 0.2, 0.525, 0.636];  % Adjust the position of the axes to match the previous plot
 
-%% Max final flatness heatmap
+%% Max final flatness
 figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
 imagesc(Max_final_flatness, [1.663 5.9689]) %[1.5 6]
 set(gca, 'YDir', 'normal');
@@ -346,7 +346,7 @@ view(270, 90);  % Rotate view by 90 degrees to make the plot horizontal
 ax = gca;
 ax.Position = [0.33, 0.2, 0.525, 0.636];  % Adjust the position of the axes to match the previous plot
 
-%% Mean weight distance heatmap
+%% Mean weight distance
 figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
 imagesc(Mean_weights_distance) 
 set(gca, 'YDir', 'normal');

@@ -163,7 +163,13 @@ imagesc(Jaccard_similarities_all)
 set(gca, 'YDir', 'normal');
 axis square
 colormap(viridis)
-colorbar
+cb = colorbar;
+cb.Label.String = '$Sim_J$';
+cb.Label.Units = 'normalized';
+cb.Label.Interpreter = 'latex';
+cb.Label.FontSize = 16;
+cb.Label.Rotation = 0; 
+cb.Label.Position = [0.5, 1.08, 0]; 
 
 % Set ticks and labels for axes
 xticks(1:16)  

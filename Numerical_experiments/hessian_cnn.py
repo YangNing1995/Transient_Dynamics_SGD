@@ -4,7 +4,7 @@ from scipy.io import savemat
 from argparse import ArgumentParser
 import os
 import time
-from model import SimpleCNN  # Change 1: Import SimpleCNN
+from model import SimpleCNN  
 from data_utils import get_data_loaders
 from torch.func import functional_call, hessian 
 
@@ -56,7 +56,6 @@ def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=1
     print(f"Data shape for Hessian calculation: {Train_data.shape}")
 
     # --- 4. Initialize Model (SimpleCNN) ---
-    # Change 2: Use SimpleCNN
     model = SimpleCNN(input_dim=input_dim, hidden=hidden_num).to(device)
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -90,7 +89,6 @@ def main(BS_list, LR_list, total_realizations, dataset_name='MNIST', train_num=1
                 time_points = np.linspace(0, max_iteration, 101)
                 time_points = np.round(time_points).astype(int)
                 
-                # --- Change 3: Dynamic Array Size ---
                 # Initialize storage for eigenvalues using dynamic 'num_params' instead of hardcoded 2500
                 H_save = np.zeros([num_params, 101], dtype=np.float32)
 

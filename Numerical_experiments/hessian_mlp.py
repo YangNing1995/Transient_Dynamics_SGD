@@ -131,15 +131,15 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # --- Parameter Configuration ---
-    BS_list = [50]
-    LR_list = [0.01]
-    total_realizations = 5
+    BS_list = [1000, 500, 200, 100, 50, 20, 10]
+    LR_list =  [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+    total_realizations = 20
     
     # Dataset and Size Configuration
     dataset_name = 'MNIST'   # Options: 'MNIST', 'CIFAR10'
-    train_num = -1          # Number of samples per class (or -1 for full dataset)
-    test_num = -1            # Number of test samples per class
-    
+    train_num = 100          # Number of samples per class (or -1 for full dataset)
+    test_num = 20            # Number of test samples per class
+
     # Run Main
     main(BS_list, LR_list, total_realizations, dataset_name, train_num, test_num)
     

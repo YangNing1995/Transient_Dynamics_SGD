@@ -141,11 +141,6 @@ if __name__ == '__main__':
     total_iterations = 2000
     load_iteration_list = list(range(0, 1001, 20))
 
-    # load_batch_size = 10
-    # load_learning_rate = 0.01
-    # load_realization = 1
-    # total_iterations = 10000
-    # load_iteration_list = [0, 500]
     # --- Dataset Configuration ---
     dataset_name = 'MNIST'   # Options: 'MNIST', 'CIFAR10'
     train_num = 100          # Number of samples per class (or -1 for full dataset)

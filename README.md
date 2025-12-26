@@ -31,8 +31,8 @@ Contains training scripts, model definitions, and analysis utilities.
 * **Experiment Drivers**
     * `run_repeat_mlp.py`: Script for repeated training of MLPs on the MNIST subset.
     * `run_repeat_cnn.py`: Script for repeated training of CNNs on the full CIFAR-10 dataset.
-    * `continue_training.py`: Implements the **deterministic continuation protocol** (switching to full-batch GD) to probe the properties of the valley currently occupied by SGD.
-
+    * `continue_training.py`: Implements the deterministic continuation protocol (switching to full-batch GD) to probe the properties of the valley currently occupied by SGD.
+O
 * **Landscape Analysis**
     * `hessian_mlp.py`: Hessian eigenspectrum computation for MLPs.
     * `hessian_cnn.py`: Hessian eigenspectrum computation for CNNs.
@@ -126,7 +126,7 @@ python run_repeat_cnn.py \
 
 ```
 
-#### C. Continuation Training (Valley Discovery)
+#### C. Continuation Training
 
 Resumes training from a specific checkpoint using full-batch Gradient Descent (GD) to identify the local basin of attraction.
 

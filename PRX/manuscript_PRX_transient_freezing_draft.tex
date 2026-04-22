@@ -1,0 +1,201 @@
+%% =========================================================
+%% PRX main-manuscript draft focused on transient freezing
+%% =========================================================
+
+\documentclass[aps,prx,reprint,superscriptaddress,longbibliography,nofootinbib,floatfix]{revtex4-2}
+
+\usepackage{graphicx}
+\usepackage{dcolumn}
+\usepackage{bm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{physics}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\newcommand{\placeholderfigure}[2]{%
+    \fbox{\parbox[c][#2][c]{0.92\linewidth}{\centering\textbf{#1}\\[0.5em]\small Figure placeholder to be replaced in the final manuscript.}}%
+}
+
+\begin{document}
+
+\title{Transient Freezing Governs Flat-Minimum Selection in Stochastic Gradient Descent}
+
+\author{Ning Yang}
+\thanks{These authors contributed equally to this work.}
+\affiliation{Peking University Chengdu Academy for Advanced Interdisciplinary Biotechnologies, Chengdu 610213, China}
+
+\author{Yikuan Zhang}
+\thanks{These authors contributed equally to this work.}
+\affiliation{School of Physics, Peking University, Beijing 100871, China}
+
+\author{Qi Ouyang}
+\affiliation{Institute for Advanced Study in Physics, Zhejiang University, Hangzhou 310058, China}
+
+\author{Chao Tang}
+\affiliation{Peking University Chengdu Academy for Advanced Interdisciplinary Biotechnologies, Chengdu 610213, China}
+\affiliation{Center for Quantitative Biology, Peking University, Beijing 100871, China}
+
+\author{Yuhai Tu}
+\email{ytu@flatironinstitute.org}
+\affiliation{Center for Computational Biology \& Center for Computational Neuroscience, Flatiron Institute, New York, NY 10010, USA}
+
+\begin{abstract}
+Stochastic gradient descent (SGD) often finds flatter minima with better generalization. Yet the key question remains unresolved: when is the final basin actually selected during training? Existing explanations mainly emphasize a late-stage or quasi-steady-state bias in a fixed landscape. Here we show that the decisive event occurs earlier, during a transient nonequilibrium regime in which SGD remains mobile across competing valleys before inter-valley motion freezes. Using continuation-training measurements, we find direct evidence of valley hopping during early training and define a freezing time that marks the end of effective inter-valley exploration. We then show that stronger SGD noise promotes flatter minima mainly by delaying this freezing time, not simply by increasing an instantaneous static preference. A minimal two-valley model with anisotropic, landscape-dependent noise reproduces the same sequence of phenomena and explains why fixed-landscape steady-state bias alone cannot account for the observed noise dependence. These results recast flat-minimum selection as a history-dependent nonequilibrium selection problem controlled by the duration of transient mobility.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+Deep neural networks are trained by moving through a high-dimensional loss landscape, yet the dynamical principle that determines the final solution remains only partially understood \cite{lecunDeepLearning2015,levineMachineLearningMeets2024a,liuLossLandscapesOptimization2022,sunGlobalLandscapeNeural2020}. One of the most robust observations is that stochastic gradient descent (SGD) tends to find solutions that are flatter and often more generalizable than those obtained by less noisy optimization procedures \cite{hochreiterFlatMinima1997,liVisualizingLossLandscape2018,jastrzebskiThreeFactorsInfluencing2018,wuHowSGDSelects2018,keskarLargeBatchTrainingDeep2017,chenSimpleConnectionLoss2024}. This has led to the common view that SGD has an implicit bias toward flat minima.
+
+The key question, however, is not only \emph{which} minima are preferred, but \emph{when} that preference is converted into a final basin choice. Many influential explanations focus on late-stage dynamics, for example by analyzing the effective potential induced by anisotropic noise or by studying near-stationary motion inside a fixed or slowly varying valley \cite{zhuAnisotropicNoiseStochastic2019,xieDiffusionTheoryDeep2021,weiHowNoiseAffects2019,yangStochasticGradientDescent2023}. These approaches capture an important part of SGD, but they are most natural after training has already entered a weak-gradient regime. They say less about the early stage, when gradients are large, barriers are evolving, and the trajectory has not yet committed to a single basin.
+
+This distinction matters because many properties of the final network are established surprisingly early in training \cite{gur-ariGradientDescentHappens2018,achilleCriticalLearningPeriods2019,fengPhasesLearningDynamics2021a,kalraPhaseDiagramEarly2023,jastrzebskiBreakEvenPointOptimization2020}. The decisive stage of optimization may therefore be strongly nonequilibrium. If so, then the relevant issue is not only which basin would be favored in a hypothetical steady state, but also how long the dynamics remain able to explore competing basins before that exploration arrests.
+
+Here we study flat-minimum selection as a nonequilibrium selection problem controlled by \emph{transient freezing}. We show that SGD initially remains mobile across multiple valleys and that the final outcome is set when effective inter-valley motion ceases. Stronger noise promotes flatter minima mainly by extending the finite-time window over which basin competition remains active, not simply by strengthening an instantaneous static bias. In this sense the final state is selected by the pathway to arrest rather than by static preference alone.
+
+Our argument proceeds in four steps. First, continuation-training experiments reveal direct valley hopping during early training and identify a crossover to basin commitment. Second, this crossover defines a freezing time whose dependence on noise predicts the final basin selected by SGD. Third, we show why fixed-landscape steady-state bias is incomplete: at fixed position, stronger noise need not monotonically enhance flat-valley selectivity, even though empirically it increases the final probability of reaching a flat minimum. Finally, a minimal two-valley model with anisotropic, landscape-dependent noise reproduces the same sequence of phenomena and yields a quantitative transient-freezing theory. The resulting picture shifts the emphasis from asymptotic sampling to the finite-time arrest of exploration.
+
+\section{Early-Time Valley Hopping Precedes Basin Commitment}
+The most direct evidence for transient selection is that early SGD trajectories are not immediately confined to a single basin. Instead, training remains mobile across multiple valleys before eventually becoming committed to one of them. Two observations in our data support this picture. First, independent runs from the same initialization converge to distinct clusters in parameter space that are separated by substantial interpolation barriers, indicating the presence of competing valleys. Second, and more directly, continuation-training experiments show that the valley associated with a partially trained network is still changing during the early stage of optimization.
+
+The continuation protocol is simple. A reference SGD trajectory is saved at a sequence of checkpoint times $t_c$. From each checkpoint, training is restarted using deterministic full-batch gradient descent. Because the continuation dynamics contain little or no stochastic valley hopping, the final state of each continuation identifies the valley that the SGD trajectory would occupy if exploration were arrested at time $t_c$. For early checkpoints, different continuation times lead to final states with substantially different flatness and test performance. For sufficiently late checkpoints, all continuations converge to the same valley. The crossover between these two regimes shows that early training is a period of genuine basin competition.
+
+This observation suggests an operational definition of basin commitment. Let $v(t_c)$ denote the valley identity inferred from a continuation started at checkpoint $t_c$. Early in training, $v(t_c)$ depends strongly on $t_c$; later, it becomes stable. We therefore define the freezing time $t_f$ as the earliest time after which the final valley identity remains robust under continuation or independent reruns. Conceptually, $t_f$ is not simply the time at which the loss becomes small. It is the time at which effective inter-valley rearrangements cease.
+
+The important point is that the decisive event in SGD is not the final relaxation inside a chosen valley. It is the loss of mobility across valleys. Once that mobility is gone, later optimization mainly refines an already selected solution. This makes the early nonequilibrium regime the natural place to look for the origin of flat-minimum selection.
+
+\begin{figure*}[t]
+\centering
+\placeholderfigure{Figure 1: Early valley hopping and basin commitment}{0.22\textheight}
+\caption{Schematic placeholder for the early-time phenomenology. The final figure will combine evidence for distinct valleys, continuation-training trajectories, an operational definition of the freezing time $t_f$, and the observation that stronger noise delays basin commitment.}
+\label{fig:phenomenology}
+\end{figure*}
+
+\section{Freezing Time Controls Final Basin Selection}
+Once basin commitment is identified as the decisive event, the next question is what controls its timing. Our central empirical claim is that the relevant control variable is the duration of the transient exploratory window, quantified by the freezing time $t_f$. In practice, the continuation-based definition above can be complemented by a proxy derived directly from the training dynamics: the time at which the trajectory enters a low-loss, effectively committed regime. In the current dataset and architecture, this proxy is well captured by
+\begin{equation}
+ t_f \equiv \min\{t \mid \mathcal{L}_{\mathrm{train}}(t) < \mathcal{L}_c\},
+\label{eq:freezing_time}
+\end{equation}
+where $\mathcal{L}_c$ is a small threshold chosen to mark the end of the transient search phase.
+
+This definition is meaningful because the continuation experiments show that the same crossover also marks the disappearance of effective valley hopping. Runs with larger SGD noise---achieved, for example, by increasing the learning rate or decreasing the batch size---reach this committed regime later. Their training trajectories remain mobile across competing valleys for longer, and this prolonged mobility systematically increases the probability of ending in the flatter valley.
+
+The key point is that the relevant parameter is not simply the instantaneous amplitude of the noise. What matters is how long the noise keeps the system dynamically mobile. Two optimization settings with different microscopic noise statistics can produce similar outcomes if they generate similar freezing times, whereas settings with comparable nominal noise amplitudes can produce different outcomes if one of them freezes much earlier. Freezing time therefore provides a more direct organizing variable for basin selection than raw hyperparameters alone.
+
+Empirically, later freezing correlates with both larger flatness and improved generalization in our experiments. The transient noisy phase is thus not wasted wandering. It is the finite-time search process through which SGD discovers more favorable valleys before it loses the ability to move between them. The quality of the final solution depends on how late the system freezes relative to the evolving structure of the landscape.
+
+\begin{figure}[t]
+\centering
+\placeholderfigure{Figure 2: Freezing time controls final selection}{0.20\textheight}
+\caption{Schematic placeholder for the relation between noise, freezing time, flatness, and generalization. The final figure can include a practical definition of $t_f$, its dependence on batch size or learning rate, and the correlation between later freezing and flatter final solutions.}
+\label{fig:freezing_control}
+\end{figure}
+
+\section{Static Bias Alone Cannot Explain the Noise Dependence}
+The transient-freezing viewpoint is needed because fixed-landscape intuition, although useful, is incomplete. In a quasi-steady regime where the fast inter-valley coordinate relaxes at an approximately fixed training coordinate $y$, anisotropic SGD noise induces an effective nonequilibrium bias toward flatter valleys \cite{xieDiffusionTheoryDeep2021,zhuAnisotropicNoiseStochastic2019,yangStochasticGradientDescent2023}. In our minimal description below, this quasi-steady preference can be expressed as the occupation probability of the flat valley,
+\begin{equation}
+P_{\mathrm{flat}}^{\mathrm{ss}}(y)
+\approx \left[1 + \gamma^{-\frac{1}{2}}
+\exp\!\left(\frac{\Delta \mathcal{L}(y)\left[f_{\mathrm{sharp}}(y)-f_{\mathrm{flat}}(y)\right]}{2\Delta_S}\right)\right]^{-1},
+\label{eq:steady_state_bias}
+\end{equation}
+where $\Delta_S$ denotes the effective SGD noise level and $\gamma = f_{\mathrm{flat}}/f_{\mathrm{sharp}} > 1$ measures the flatness contrast between the two valleys.
+
+Equation~(\ref{eq:steady_state_bias}) shows why a static argument cannot be the whole story. At fixed $y$, larger noise does not necessarily make the flatter valley more selectively favored. Once the noise-induced effective landscape is fixed, increasing the effective temperature can reduce instantaneous selectivity by making the occupation probability more mixed. This is in tension with the empirical trend that stronger SGD noise often leads to \emph{more} convergence to flatter minima, not less.
+
+The resolution is that the final training outcome is not determined by a steady-state probability evaluated at a fixed landscape position. The landscape itself evolves during training. As descent proceeds, barriers and valley widths change, and inter-valley hopping progressively slows down. The final basin is therefore selected neither by a global late-time equilibrium nor by a static early-time preference, but by the quasi-steady bias that becomes frozen at the moment when inter-valley motion arrests. The missing variable in the static picture is the freezing time.
+
+This leads to the central paradox addressed by our theory: stronger noise can weaken instantaneous selectivity at fixed position while still enhancing the final selection of the flatter valley, because it delays the time at which the dynamics stop exploring competing valleys.
+
+\begin{figure}[t]
+\centering
+\placeholderfigure{Figure 3: Why static bias is insufficient}{0.20\textheight}
+\caption{Schematic placeholder contrasting fixed-landscape steady-state intuition with the observed noise dependence of the final outcome. The final figure should make clear that a static bias exists but does not by itself explain why stronger noise enhances final flat-valley selection.}
+\label{fig:static_bias}
+\end{figure}
+
+\section{A Minimal Theory of Transient Freezing}
+To isolate the mechanism, we consider a minimal two-dimensional landscape $\mathcal{L}(x,y)$ in which $y$ represents the downhill training direction and $x$ resolves the competition between two valleys of unequal flatness. As training progresses, the landscape bifurcates and produces a flatter valley for $x>0$ and a sharper valley for $x<0$. A convenient explicit realization is
+\begin{equation}
+    \mathcal{L}(x, y) = \mathcal{L}_0(y) +
+    \begin{cases}
+       \dfrac{x\left[x - g_1(y)\right]}{f_1(y)}, & x \geq 0, \\
+       \dfrac{x\left[x + g_2(y)\right]}{f_2(y)}, & x < 0,
+    \end{cases}
+    \label{eq:toy_loss}
+\end{equation}
+where $g_{1,2}(y)$ control the valley positions and $f_{1,2}(y)$ their local flatness. As $y$ increases, the two valleys separate and their barrier grows, while both valleys simultaneously flatten. This geometry captures the ingredients suggested by the neural-network experiments: competing valleys, evolving barriers, and a progressive increase of flatness along the training direction.
+
+The stochastic dynamics are modeled by a discrete-time Langevin equation,
+\begin{equation}
+    \bm{\theta}_{t+1} = \bm{\theta}_t - \eta \left[\nabla \mathcal{L}(\bm{\theta}_t) + \bm{\xi}_t\right],
+    \qquad \bm{\theta} = (x,y),
+    \label{eq:toy_dynamics}
+\end{equation}
+with a noise covariance chosen to mimic the anisotropic, landscape-dependent structure of SGD,
+\begin{equation}
+    \mathrm{Cov}(\bm{\xi}_t) = 2\sigma \, \mathbf{H}(\bm{\theta}_t),
+    \label{eq:toy_noise}
+\end{equation}
+where $\mathbf{H}$ is the local Hessian and $\sigma$ sets the noise scale. The effective noise level is therefore $\Delta_S \sim \eta \sigma$.
+
+Despite its simplicity, this model reproduces the full sequence emphasized by the data. Early in the dynamics, when barriers are still low, trajectories hop repeatedly between the two valleys. As $y$ increases, the barrier grows and valley-to-valley transitions become progressively rarer. The final basin is selected when this hopping effectively stops. Increasing $\Delta_S$ keeps the system mobile for longer, thereby postponing the freezing point and increasing the final probability of ending in the flatter valley.
+
+The model is not intended as a literal reduction of deep learning to two coordinates. Its purpose is to expose the minimal ingredients required for transient selection: (i) competing valleys, (ii) noise coupled to local geometry, (iii) barriers that evolve during training, and (iv) a finite exploratory window terminated by arrest. Once these ingredients are present, flat-minimum selection becomes a history-dependent consequence of nonequilibrium dynamics rather than merely an asymptotic property of a fixed landscape.
+
+\begin{figure}[t]
+\centering
+\placeholderfigure{Figure 4: Minimal two-valley model}{0.20\textheight}
+\caption{Schematic placeholder for the minimal theory. The final figure can show the bifurcating landscape, representative stochastic trajectories, and the dependence of flat-valley occupation and freezing time on the effective noise level.}
+\label{fig:minimal_model}
+\end{figure}
+
+\section{Quantitative Predictions and Experimental Tests}
+The transient-freezing framework becomes predictive once we distinguish between two probabilities: the instantaneous quasi-steady preference at a given $y$, and the final occupation probability selected when exploration freezes. In the two-valley model, the latter is obtained by evaluating the quasi-steady bias at the freezing point,
+\begin{equation}
+P_{\mathrm{flat}}^{\mathrm{tr}} \approx P_{\mathrm{flat}}^{\mathrm{ss}}\!\left(y_f\right),
+\label{eq:transient_selection}
+\end{equation}
+where $y_f$ is the training coordinate at which inter-valley hopping becomes negligible. Because $y_f$ increases with the effective noise level, the final occupation probability can grow with noise even when the fixed-$y$ selectivity in Eq.~(\ref{eq:steady_state_bias}) becomes weaker. This is how transient freezing resolves the noise-selection paradox.
+
+The theory makes several concrete predictions. First, the freezing time should increase systematically with stronger SGD noise. Second, final flat-valley selection should correlate more directly with freezing time than with raw hyperparameters viewed in isolation. Third, a minimal model and a neural network need not share microscopic details to exhibit the same selection law, provided they share the same ordering of time scales: rapid equilibration across valleys early on, followed by a barrier-driven arrest of inter-valley motion.
+
+Our existing experiments already support each part of this picture at a qualitative level. Noise delays the end of the transient search phase; continuation training shows that valley identity remains labile precisely during that window; and flatter, better-generalizing solutions become more likely when that window is extended. The minimal model reproduces the same trends and provides a compact explanation for why static bias and final selection need not have the same dependence on noise.
+
+A particularly direct test in the final version will be to organize the data by $t_f$ itself. If transient freezing is the correct organizing principle, then different combinations of batch size and learning rate should become more comparable once they are viewed through the freezing-time lens. Whether or not the final data collapse is perfect, the theory identifies $t_f$ as the physically meaningful variable connecting stochasticity to the geometry of the selected solution.
+
+\begin{figure*}[t]
+\centering
+\placeholderfigure{Figure 5: Quantitative predictions and experiment-theory comparison}{0.22\textheight}
+\caption{Schematic placeholder for the predictive part of the paper. The final figure can compare neural-network experiments and the two-valley model, emphasize the relation between effective noise and freezing time, and test whether final flat-valley selection is better organized by $t_f$ than by a static descriptor alone.}
+\label{fig:predictions}
+\end{figure*}
+
+\section{Discussion: Flat-Minimum Selection as a Nonequilibrium Freezing Process}
+In this work, we argue that flat-minimum selection in SGD is best viewed as a nonequilibrium freezing problem. The central mechanism is simple: SGD initially explores competing valleys, and the final basin is selected when effective inter-valley motion stops. The relevant question is therefore not only which valley is favored in a notional steady state, but when basin competition freezes.
+
+This perspective clarifies the role of SGD noise. Noise does not simply act as a scalar regularizer that favors flatness at all times. Its main role is dynamical: it controls the duration of the exploratory regime before freezing. Stronger noise can therefore enhance flat-minimum selection even when fixed-landscape selectivity alone would not predict such an enhancement. This suggests a practical design principle for optimization schedules: to influence the final solution, control not only the asymptotic noise level but also the time at which basin commitment occurs.
+
+Our analysis also suggests why the mechanism should extend beyond the specific network and dataset studied here. The required ingredients are generic: multiple competing valleys, geometry-coupled stochasticity, barriers that evolve during descent, and a finite window of exploration. Whenever these ingredients coexist, one should expect a transient-freezing problem rather than a purely steady-state sampling problem. The framework should therefore be relevant to deeper networks, richer datasets, and more general stochastic optimizers.
+
+Several directions remain for the final paper. The quantitative theory should be tightened, the strongest architecture-level evidence should be moved into the main text, and the final figures should be rebuilt around the transient-freezing narrative. More generally, it will be important to determine how broadly freezing time can organize optimization outcomes across architectures and training protocols. But the central message is already clear: SGD selects flat minima not simply because they are statically favored, but because noise keeps the dynamics mobile across competing valleys until a sufficiently late freezing time allows the flatter valley to win.
+
+\section*{Data and Code Availability}
+The code used for the empirical experiments and the two-valley simulations is available at
+\url{https://github.com/YangNing1995/Transient_Dynamics_SGD}.
+
+\begin{acknowledgments}
+The work by N.Y. and C.T. was supported by the National Natural Science Foundation of China (Grant No. 12505089) and Fundamental and Interdisciplinary Disciplines Breakthrough Plan of the Ministry of Education of China (JYB2025XDXM502). The Flatiron Institute is a division of the Simons Foundation.
+\end{acknowledgments}
+
+\bibliography{deeplearning}
+
+\end{document}

@@ -1,0 +1,285 @@
+%apsrev4-2.bst 2019-01-14 (MD) hand-edited version of apsrev4-1.bst
+%Control: key (0)
+%Control: author (8) initials jnrlst
+%Control: editor formatted (1) identically to author
+%Control: production of article title (0) allowed
+%Control: page (0) single
+%Control: year (1) truncated
+%Control: production of eprint (0) enabled
+\begin{thebibliography}{19}%
+\makeatletter
+\providecommand \@ifxundefined [1]{%
+ \@ifx{#1\undefined}
+}%
+\providecommand \@ifnum [1]{%
+ \ifnum #1\expandafter \@firstoftwo
+ \else \expandafter \@secondoftwo
+ \fi
+}%
+\providecommand \@ifx [1]{%
+ \ifx #1\expandafter \@firstoftwo
+ \else \expandafter \@secondoftwo
+ \fi
+}%
+\providecommand \natexlab [1]{#1}%
+\providecommand \enquote  [1]{``#1''}%
+\providecommand \bibnamefont  [1]{#1}%
+\providecommand \bibfnamefont [1]{#1}%
+\providecommand \citenamefont [1]{#1}%
+\providecommand \href@noop [0]{\@secondoftwo}%
+\providecommand \href [0]{\begingroup \@sanitize@url \@href}%
+\providecommand \@href[1]{\@@startlink{#1}\@@href}%
+\providecommand \@@href[1]{\endgroup#1\@@endlink}%
+\providecommand \@sanitize@url [0]{\catcode `\\12\catcode `\$12\catcode
+  `\&12\catcode `\#12\catcode `\^12\catcode `\_12\catcode `\%12\relax}%
+\providecommand \@@startlink[1]{}%
+\providecommand \@@endlink[0]{}%
+\providecommand \url  [0]{\begingroup\@sanitize@url \@url }%
+\providecommand \@url [1]{\endgroup\@href {#1}{\urlprefix }}%
+\providecommand \urlprefix  [0]{URL }%
+\providecommand \Eprint [0]{\href }%
+\providecommand \doibase [0]{https://doi.org/}%
+\providecommand \selectlanguage [0]{\@gobble}%
+\providecommand \bibinfo  [0]{\@secondoftwo}%
+\providecommand \bibfield  [0]{\@secondoftwo}%
+\providecommand \translation [1]{[#1]}%
+\providecommand \BibitemOpen [0]{}%
+\providecommand \bibitemStop [0]{}%
+\providecommand \bibitemNoStop [0]{.\EOS\space}%
+\providecommand \EOS [0]{\spacefactor3000\relax}%
+\providecommand \BibitemShut  [1]{\csname bibitem#1\endcsname}%
+\let\auto@bib@innerbib\@empty
+%</preamble>
+\bibitem [{\citenamefont {LeCun}\ \emph {et~al.}(2015)\citenamefont {LeCun},
+  \citenamefont {Bengio},\ and\ \citenamefont
+  {Hinton}}]{lecunDeepLearning2015}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont
+  {LeCun}}, \bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont {Bengio}},\ and\
+  \bibinfo {author} {\bibfnamefont {G.}~\bibnamefont {Hinton}},\ }\bibfield
+  {title} {\bibinfo {title} {Deep learning},\ }\href
+  {https://doi.org/10.1038/nature14539} {\bibfield  {journal} {\bibinfo
+  {journal} {Nature}\ }\textbf {\bibinfo {volume} {521}},\ \bibinfo {pages}
+  {436} (\bibinfo {year} {2015})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Levine}\ and\ \citenamefont
+  {Tu}(2024)}]{levineMachineLearningMeets2024a}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {H.}~\bibnamefont
+  {Levine}}\ and\ \bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont {Tu}},\
+  }\bibfield  {title} {\bibinfo {title} {Machine learning meets physics: {{A}}
+  two-way street},\ }\href {https://doi.org/10.1073/pnas.2403580121} {\bibfield
+   {journal} {\bibinfo  {journal} {Proceedings of the National Academy of
+  Sciences}\ }\textbf {\bibinfo {volume} {121}},\ \bibinfo {pages}
+  {e2403580121} (\bibinfo {year} {2024})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Liu}\ \emph {et~al.}(2022)\citenamefont {Liu},
+  \citenamefont {Zhu},\ and\ \citenamefont
+  {Belkin}}]{liuLossLandscapesOptimization2022}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {C.}~\bibnamefont
+  {Liu}}, \bibinfo {author} {\bibfnamefont {L.}~\bibnamefont {Zhu}},\ and\
+  \bibinfo {author} {\bibfnamefont {M.}~\bibnamefont {Belkin}},\ }\bibfield
+  {title} {\bibinfo {title} {Loss landscapes and optimization in
+  over-parameterized non-linear systems and neural networks},\ }\href
+  {https://doi.org/10.1016/j.acha.2021.12.009} {\bibfield  {journal} {\bibinfo
+  {journal} {Applied and Computational Harmonic Analysis}\ }\textbf {\bibinfo
+  {volume} {59}},\ \bibinfo {pages} {85} (\bibinfo {year} {2022})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Sun}\ \emph {et~al.}(2020)\citenamefont {Sun},
+  \citenamefont {Li}, \citenamefont {Liang}, \citenamefont {Ding},\ and\
+  \citenamefont {Srikant}}]{sunGlobalLandscapeNeural2020}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {R.}~\bibnamefont
+  {Sun}}, \bibinfo {author} {\bibfnamefont {D.}~\bibnamefont {Li}}, \bibinfo
+  {author} {\bibfnamefont {S.}~\bibnamefont {Liang}}, \bibinfo {author}
+  {\bibfnamefont {T.}~\bibnamefont {Ding}},\ and\ \bibinfo {author}
+  {\bibfnamefont {R.}~\bibnamefont {Srikant}},\ }\bibfield  {title} {\bibinfo
+  {title} {The {{Global Landscape}} of {{Neural Networks}}: {{An Overview}}},\
+  }\href {https://doi.org/10.1109/MSP.2020.3004124} {\bibfield  {journal}
+  {\bibinfo  {journal} {IEEE Signal Processing Magazine}\ }\textbf {\bibinfo
+  {volume} {37}},\ \bibinfo {pages} {95} (\bibinfo {year} {2020})},\ \Eprint
+  {https://arxiv.org/abs/2007.01429} {arXiv:2007.01429 [cs, math, stat]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Hochreiter}\ and\ \citenamefont
+  {Schmidhuber}(1997)}]{hochreiterFlatMinima1997}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
+  {Hochreiter}}\ and\ \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont
+  {Schmidhuber}},\ }\bibfield  {title} {\bibinfo {title} {Flat minima},\ }\href
+  {https://doi.org/10.1162/NECO.1997.9.1.1} {\bibfield  {journal} {\bibinfo
+  {journal} {Neural Computation}\ }\textbf {\bibinfo {volume} {9}},\ \bibinfo
+  {pages} {1} (\bibinfo {year} {1997})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Li}\ \emph {et~al.}(2018)\citenamefont {Li},
+  \citenamefont {Xu}, \citenamefont {Taylor}, \citenamefont {Studer},\ and\
+  \citenamefont {Goldstein}}]{liVisualizingLossLandscape2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {H.}~\bibnamefont
+  {Li}}, \bibinfo {author} {\bibfnamefont {Z.}~\bibnamefont {Xu}}, \bibinfo
+  {author} {\bibfnamefont {G.}~\bibnamefont {Taylor}}, \bibinfo {author}
+  {\bibfnamefont {C.}~\bibnamefont {Studer}},\ and\ \bibinfo {author}
+  {\bibfnamefont {T.}~\bibnamefont {Goldstein}},\ }\bibfield  {title} {\bibinfo
+  {title} {Visualizing the loss landscape of neural nets},\ }in\ \href@noop {}
+  {\emph {\bibinfo {booktitle} {{{NeurIPS}}}}}\ (\bibinfo {year} {2018})\ pp.\
+  \bibinfo {pages} {6391--6401}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Jastrzebski}\ \emph {et~al.}(2018)\citenamefont
+  {Jastrzebski}, \citenamefont {Kenton}, \citenamefont {Arpit}, \citenamefont
+  {Ballas}, \citenamefont {Fischer}, \citenamefont {Bengio},\ and\
+  \citenamefont {Storkey}}]{jastrzebskiThreeFactorsInfluencing2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
+  {Jastrzebski}}, \bibinfo {author} {\bibfnamefont {Z.}~\bibnamefont {Kenton}},
+  \bibinfo {author} {\bibfnamefont {D.}~\bibnamefont {Arpit}}, \bibinfo
+  {author} {\bibfnamefont {N.}~\bibnamefont {Ballas}}, \bibinfo {author}
+  {\bibfnamefont {A.}~\bibnamefont {Fischer}}, \bibinfo {author} {\bibfnamefont
+  {Y.}~\bibnamefont {Bengio}},\ and\ \bibinfo {author} {\bibfnamefont
+  {A.}~\bibnamefont {Storkey}},\ }\bibfield  {title} {\bibinfo {title} {Three
+  factors influencing minima in {{SGD}}},\ }in\ \href@noop {} {\emph {\bibinfo
+  {booktitle} {International Conference on Artificial Neural Networks
+  ({{ICANN}})}}}\ (\bibinfo  {publisher} {Springer},\ \bibinfo {year} {2018})\
+  pp.\ \bibinfo {pages} {169--180}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Wu}\ \emph {et~al.}(2018)\citenamefont {Wu},
+  \citenamefont {Ma},\ and\ \citenamefont {E}}]{wuHowSGDSelects2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {L.}~\bibnamefont
+  {Wu}}, \bibinfo {author} {\bibfnamefont {C.}~\bibnamefont {Ma}},\ and\
+  \bibinfo {author} {\bibfnamefont {W.}~\bibnamefont {E}},\ }\bibfield  {title}
+  {\bibinfo {title} {How {{SGD}} selects the global minima in
+  over-parameterized learning: {{A}} dynamical stability perspective},\ }in\
+  \href@noop {} {\emph {\bibinfo {booktitle} {{{NeurIPS}}}}}\ (\bibinfo {year}
+  {2018})\ pp.\ \bibinfo {pages} {8289--8298}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Keskar}\ \emph {et~al.}(2017)\citenamefont {Keskar},
+  \citenamefont {Mudigere}, \citenamefont {Nocedal}, \citenamefont
+  {Smelyanskiy},\ and\ \citenamefont
+  {Tang}}]{keskarLargeBatchTrainingDeep2017}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {N.~S.}\ \bibnamefont
+  {Keskar}}, \bibinfo {author} {\bibfnamefont {D.}~\bibnamefont {Mudigere}},
+  \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont {Nocedal}}, \bibinfo
+  {author} {\bibfnamefont {M.}~\bibnamefont {Smelyanskiy}},\ and\ \bibinfo
+  {author} {\bibfnamefont {P.~T.~P.}\ \bibnamefont {Tang}},\ }\bibfield
+  {title} {\bibinfo {title} {On large-batch training for deep learning:
+  {{Generalization}} gap and sharp minima},\ }in\ \href@noop {} {\emph
+  {\bibinfo {booktitle} {{{ICLR}}}}}\ (\bibinfo {year} {2017})\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Chen}\ \emph {et~al.}(2024)\citenamefont {Chen},
+  \citenamefont {Recanatesi},\ and\ \citenamefont
+  {{Shea-Brown}}}]{chenSimpleConnectionLoss2024}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
+  {Chen}}, \bibinfo {author} {\bibfnamefont {S.}~\bibnamefont {Recanatesi}},\
+  and\ \bibinfo {author} {\bibfnamefont {E.}~\bibnamefont {{Shea-Brown}}},\
+  }\bibfield  {title} {\bibinfo {title} {A simple connection from loss flatness
+  to compressed representations in neural networks},\ }\href@noop {} {\bibfield
+   {journal} {\bibinfo  {journal} {arXiv:2310.01770}\ } (\bibinfo {year}
+  {2024})},\ \Eprint {https://arxiv.org/abs/2310.01770} {arXiv:2310.01770 [cs]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Zhu}\ \emph {et~al.}(2019)\citenamefont {Zhu},
+  \citenamefont {Wu}, \citenamefont {Yu}, \citenamefont {Wu},\ and\
+  \citenamefont {Ma}}]{zhuAnisotropicNoiseStochastic2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Z.}~\bibnamefont
+  {Zhu}}, \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont {Wu}}, \bibinfo
+  {author} {\bibfnamefont {B.}~\bibnamefont {Yu}}, \bibinfo {author}
+  {\bibfnamefont {L.}~\bibnamefont {Wu}},\ and\ \bibinfo {author}
+  {\bibfnamefont {J.}~\bibnamefont {Ma}},\ }\bibfield  {title} {\bibinfo
+  {title} {The anisotropic noise in stochastic gradient descent: {{Its}}
+  behavior of escaping from sharp minima and regularization effects},\ }in\
+  \href@noop {} {\emph {\bibinfo {booktitle} {{{ICML}}}}},\ \bibinfo {series}
+  {Proceedings of Machine Learning Research}, Vol.~\bibinfo {volume} {97}\
+  (\bibinfo  {publisher} {PMLR},\ \bibinfo {year} {2019})\ pp.\ \bibinfo
+  {pages} {7654--7663}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Xie}\ \emph {et~al.}(2021)\citenamefont {Xie},
+  \citenamefont {Sato},\ and\ \citenamefont
+  {Sugiyama}}]{xieDiffusionTheoryDeep2021}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Z.}~\bibnamefont
+  {Xie}}, \bibinfo {author} {\bibfnamefont {I.}~\bibnamefont {Sato}},\ and\
+  \bibinfo {author} {\bibfnamefont {M.}~\bibnamefont {Sugiyama}},\ }\bibfield
+  {title} {\bibinfo {title} {A diffusion theory for deep learning dynamics:
+  {{Stochastic}} gradient descent exponentially favors flat minima},\ }in\
+  \href@noop {} {\emph {\bibinfo {booktitle} {{{ICLR}}}}}\ (\bibinfo {year}
+  {2021})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Wei}\ and\ \citenamefont
+  {Schwab}(2019)}]{weiHowNoiseAffects2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {M.}~\bibnamefont
+  {Wei}}\ and\ \bibinfo {author} {\bibfnamefont {D.~J.}\ \bibnamefont
+  {Schwab}},\ }\bibfield  {title} {\bibinfo {title} {How noise affects the
+  {{Hessian}} spectrum in overparameterized neural networks},\ }\href@noop {}
+  {\bibfield  {journal} {\bibinfo  {journal} {arXiv:1910.00195}\ } (\bibinfo
+  {year} {2019})},\ \Eprint {https://arxiv.org/abs/1910.00195}
+  {arXiv:1910.00195} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Yang}\ \emph {et~al.}(2023)\citenamefont {Yang},
+  \citenamefont {Tang},\ and\ \citenamefont
+  {Tu}}]{yangStochasticGradientDescent2023}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {N.}~\bibnamefont
+  {Yang}}, \bibinfo {author} {\bibfnamefont {C.}~\bibnamefont {Tang}},\ and\
+  \bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont {Tu}},\ }\bibfield
+  {title} {\bibinfo {title} {Stochastic {{Gradient Descent Introduces}} an
+  {{Effective Landscape-Dependent Regularization Favoring Flat Solutions}}},\
+  }\href {https://doi.org/10.1103/PhysRevLett.130.237101} {\bibfield  {journal}
+  {\bibinfo  {journal} {Physical Review Letters}\ }\textbf {\bibinfo {volume}
+  {130}},\ \bibinfo {pages} {237101} (\bibinfo {year} {2023})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {{Gur-Ari}}\ \emph {et~al.}(2018)\citenamefont
+  {{Gur-Ari}}, \citenamefont {Roberts},\ and\ \citenamefont
+  {Dyer}}]{gur-ariGradientDescentHappens2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {G.}~\bibnamefont
+  {{Gur-Ari}}}, \bibinfo {author} {\bibfnamefont {D.~A.}\ \bibnamefont
+  {Roberts}},\ and\ \bibinfo {author} {\bibfnamefont {E.}~\bibnamefont
+  {Dyer}},\ }\bibfield  {title} {\bibinfo {title} {Gradient {{Descent Happens}}
+  in a {{Tiny Subspace}}},\ }\bibfield  {journal} {\bibinfo  {journal}
+  {arXiv:1812.04754}\ }\href {https://doi.org/10.48550/arXiv.1812.04754}
+  {10.48550/arXiv.1812.04754} (\bibinfo {year} {2018}),\ \Eprint
+  {https://arxiv.org/abs/1812.04754} {arXiv:1812.04754 [cs, stat]} \BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Achille}\ \emph {et~al.}(2019)\citenamefont
+  {Achille}, \citenamefont {Rovere},\ and\ \citenamefont
+  {Soatto}}]{achilleCriticalLearningPeriods2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.}~\bibnamefont
+  {Achille}}, \bibinfo {author} {\bibfnamefont {M.}~\bibnamefont {Rovere}},\
+  and\ \bibinfo {author} {\bibfnamefont {S.}~\bibnamefont {Soatto}},\
+  }\bibfield  {title} {\bibinfo {title} {Critical {{Learning Periods}} in
+  {{Deep Neural Networks}}},\ }\bibfield  {journal} {\bibinfo  {journal}
+  {arXiv:1711.08856}\ }\href {https://doi.org/10.48550/arXiv.1711.08856}
+  {10.48550/arXiv.1711.08856} (\bibinfo {year} {2019}),\ \Eprint
+  {https://arxiv.org/abs/1711.08856} {arXiv:1711.08856 [cs]} \BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Feng}\ and\ \citenamefont
+  {Tu}(2021)}]{fengPhasesLearningDynamics2021a}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont
+  {Feng}}\ and\ \bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont {Tu}},\
+  }\bibfield  {title} {\bibinfo {title} {Phases of learning dynamics in
+  artificial neural networks in the absence or presence of mislabeled data},\
+  }\href {https://doi.org/10.1088/2632-2153/abf5b9} {\bibfield  {journal}
+  {\bibinfo  {journal} {Machine Learning: Science and Technology}\ }\textbf
+  {\bibinfo {volume} {2}},\ \bibinfo {pages} {043001} (\bibinfo {year}
+  {2021})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Kalra}\ and\ \citenamefont
+  {Barkeshli}(2023)}]{kalraPhaseDiagramEarly2023}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {D.~S.}\ \bibnamefont
+  {Kalra}}\ and\ \bibinfo {author} {\bibfnamefont {M.}~\bibnamefont
+  {Barkeshli}},\ }\bibfield  {title} {\bibinfo {title} {Phase diagram of early
+  training dynamics in deep neural networks: Effect of the learning rate,
+  depth, and width},\ }in\ \href@noop {} {\emph {\bibinfo {booktitle}
+  {{{NeurIPS}}}}}\ (\bibinfo {year} {2023})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Jastrzebski}\ \emph {et~al.}(2020)\citenamefont
+  {Jastrzebski}, \citenamefont {Szymczak}, \citenamefont {Fort}, \citenamefont
+  {Arpit}, \citenamefont {Tabor}, \citenamefont {Cho},\ and\ \citenamefont
+  {Geras}}]{jastrzebskiBreakEvenPointOptimization2020}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
+  {Jastrzebski}}, \bibinfo {author} {\bibfnamefont {M.}~\bibnamefont
+  {Szymczak}}, \bibinfo {author} {\bibfnamefont {S.}~\bibnamefont {Fort}},
+  \bibinfo {author} {\bibfnamefont {D.}~\bibnamefont {Arpit}}, \bibinfo
+  {author} {\bibfnamefont {J.}~\bibnamefont {Tabor}}, \bibinfo {author}
+  {\bibfnamefont {K.}~\bibnamefont {Cho}},\ and\ \bibinfo {author}
+  {\bibfnamefont {K.~J.}\ \bibnamefont {Geras}},\ }\bibfield  {title} {\bibinfo
+  {title} {The break-even point on optimization trajectories of deep neural
+  networks},\ }in\ \href@noop {} {\emph {\bibinfo {booktitle} {{{ICLR}}}}}\
+  (\bibinfo {year} {2020})\BibitemShut {NoStop}%
+\end{thebibliography}%

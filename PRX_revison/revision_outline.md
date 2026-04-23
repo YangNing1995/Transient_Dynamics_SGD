@@ -8,7 +8,7 @@
 
 ## Central Thesis
 
-The paper should argue that stochastic gradient descent does not select flat minima mainly through a late-time steady-state bias. Instead, the decisive event is an early-time nonequilibrium **transient freezing** process: SGD remains mobile across competing valleys during early training, and the final valley is selected when inter-valley motion effectively ceases. Stronger noise promotes flatter minima primarily by delaying this freezing time.
+The paper should argue that stochastic gradient descent does not select flat minima mainly through a late-time steady-state bias. Instead, the decisive event is an early-time nonequilibrium **transient freezing** process: SGD remains mobile across competing valleys during early training, and the final valley is selected when inter-valley motion effectively ceases. Stronger noise promotes flatter minima primarily by delaying this freezing point, so basin selection occurs later along the evolving landscape rather than under a stronger static preference alone.
 
 ---
 
@@ -24,8 +24,8 @@ State the problem, identify the conceptual gap in existing explanations, introdu
 - Existing theories often emphasize late-stage, quasi-steady, or fixed-landscape reasoning.
 - We show that final basin selection is determined earlier, during a nonequilibrium exploratory phase.
 - SGD hops among valleys before becoming committed to one basin.
-- The relevant control variable is the **freezing time** at which inter-valley exploration shuts down.
-- Larger noise promotes flatter minima mainly by extending this exploratory window.
+- The relevant organizing variable is the **freezing time** at which inter-valley exploration shuts down.
+- Larger noise promotes flatter minima mainly by extending this exploratory window and therefore shifting when basin selection is locked in.
 - This provides a predictive nonequilibrium framework for optimization bias and links SGD selection to a broader class of freezing phenomena.
 
 ---
@@ -74,61 +74,64 @@ The decisive event is not final relaxation inside a valley, but the loss of inte
 
 ---
 
-## III. Freezing Time Controls Final Basin Selection
+## III. Basin Selection Is Set at the Freezing Point
 
 ### Central idea
 
-Establish freezing time as the organizing variable linking stochastic dynamics to flat-minimum selection.
+Establish freezing time as the organizing variable linking stochastic dynamics to flat-minimum selection, without treating it as an independent causal knob detached from noise and landscape evolution.
 
 ### Main points
 
 - Measure how \(t_f\) changes with noise level, batch size, or learning-rate-controlled stochasticity.
 - Show that stronger noise delays freezing and keeps trajectories mobile across competing valleys for longer.
+- Show that basin identity becomes robust once freezing occurs, so the final outcome is effectively set at the freezing point.
 - Show that later freezing correlates with larger probability of ending in the flatter valley.
-- If available, show that flatter-valley selection collapses better as a function of \(t_f\) than as a function of raw noise strength.
-- Connect delayed freezing to flatter solutions and, secondarily, to improved generalization.
+- If available, show that flatter-valley selection collapses better as a function of \(t_f\) than as a function of raw noise strength, consistent with \(t_f\) acting as a mediator of the noise dependence.
+- Emphasize that the final outcome depends on the landscape state and quasi-steady valley bias at the freezing point, not on \(t_f\) in isolation.
+- Connect delayed freezing to an increased probability of selecting flatter solutions and, secondarily, to improved generalization.
 
 ### Key takeaway
 
-The relevant control parameter is not just noise amplitude itself, but the duration of the nonequilibrium exploratory window.
+Noise influences final basin selection primarily by shifting when freezing occurs; \(t_f\) is the physically meaningful stopping-time variable that organizes this dependence.
 
 ---
 
-## IV. Static Bias Alone Cannot Explain the Noise Dependence
+## IV. A Minimal Theory of Transient Freezing
 
 ### Central idea
 
-Formulate the conceptual tension clearly: fixed-landscape or quasi-steady-state bias is real but insufficient.
+Introduce the simplest reduced model that captures competing valleys, evolving barriers, and geometry-coupled noise, so the roles of static bias and transient freezing can be separated cleanly.
 
 ### Main points
 
-- In a fixed landscape slice, anisotropic noise can generate an effective preference for flatter valleys.
-- But increasing noise at fixed position does not necessarily strengthen this static selectivity in the way needed to explain the training outcome.
-- Therefore the observed monotonic enhancement of flat-minimum selection with stronger SGD noise cannot be explained by static bias alone.
-- The missing ingredient is that the landscape evolves while inter-valley hopping progressively shuts down.
-
-### Role in the paper
-
-This section creates the paradox that the transient-freezing framework resolves.
-
----
-
-## V. A Minimal Theory of Transient Freezing
-
-### Central idea
-
-After establishing the phenomenon and the paradox, introduce the simplest theory that captures the mechanism.
-
-### Main points
-
-- Construct a minimal two-valley landscape with unequal flatness.
-- Include downhill training progress, evolving barriers, and anisotropic or landscape-dependent stochastic forcing.
+- Construct a minimal two-valley landscape with a downhill training coordinate and a transverse valley-selection coordinate.
+- Include unequal flatness, an evolving barrier, and anisotropic or landscape-dependent stochastic forcing.
 - Show that the model reproduces early valley hopping, delayed freezing under larger noise, and enhanced final occupation of the flatter valley.
-- Use the model to isolate which ingredients are essential and which are merely implementation details.
+- Use the model to define a small set of interpretable variables---flatness contrast, barrier height, effective noise, and freezing point---that can be compared directly with the experiments.
 
 ### Key takeaway
 
-A minimal nonequilibrium model is sufficient to explain why basin selection is history-dependent and controlled by freezing.
+A minimal nonequilibrium model contains the ingredients needed to analyze both the fixed-slice bias and the freezing-controlled final selection.
+
+---
+
+## V. Static Bias Is Real but Insufficient
+
+### Central idea
+
+Use the reduced model to separate the quasi-steady preference at a fixed landscape slice from the final basin chosen when exploration freezes.
+
+### Main points
+
+- In a quasi-steady regime at fixed training coordinate, anisotropic noise generates an effective preference for the flatter valley.
+- Derive or motivate the fixed-slice occupation probability and identify the quantities that control it.
+- Show that increasing noise at fixed position can weaken instantaneous selectivity by making the occupation probability more mixed.
+- Therefore the observed monotonic enhancement of flat-minimum selection with stronger SGD noise cannot be explained by static bias alone.
+- The missing ingredient is that the final outcome is inherited at the freezing point of an evolving landscape, not from a single fixed-slice bias viewed in isolation.
+
+### Key takeaway
+
+Fixed-landscape bias is real, but the final training outcome depends on when that bias is frozen into the dynamics.
 
 ---
 
@@ -160,7 +163,7 @@ Conclude with the conceptual shift: SGD solution selection is a transient nonequ
 ### Main messages
 
 - The final solution is selected when inter-valley rearrangements cease, not only by which valley would be preferred in a hypothetical steady state.
-- Stronger noise promotes flatter minima mainly by delaying the freezing of inter-valley dynamics.
+- Stronger noise promotes flatter minima mainly by delaying the freezing of inter-valley dynamics, so basin selection occurs later along training.
 - Effective-potential and entropic-bias pictures remain useful, but they are incomplete without a stopping-time or arrest mechanism.
 - The logic is conceptually reminiscent of Mpemba-like phenomena, in which outcomes depend on the pathway to freezing rather than only on equilibrium preference.
 - The framework suggests a new principle for optimizer and schedule design: control the timing of basin commitment by controlling the duration of exploratory mobility.
@@ -179,18 +182,22 @@ Emphasize that the mechanism should apply whenever training involves competing v
 - Include a schematic of valley hopping, continuation-training evidence, and an operational definition of \(t_f\).
 - End the figure with the key observation that stronger noise delays freezing.
 
-### Figure 2 — Why static bias is insufficient
-
-- Present the fixed-landscape or quasi-steady intuition.
-- Show clearly why it does not explain the full noise dependence of the final outcome.
-
-### Figure 3 — Minimal theory and quantitative predictions
+### Figure 2 — Minimal theory and delayed freezing
 
 - Introduce the two-valley model.
 - Show hopping, freezing, and selection trends.
-- Compare predictions with experiments.
 
-### Optional Figure 4 — Generality / stronger architecture
+### Figure 3 — Why static bias is insufficient
+
+- Present the fixed-landscape or quasi-steady intuition within the toy model.
+- Show clearly why it does not explain the full noise dependence of the final outcome.
+
+### Figure 4 — Quantitative predictions and experimental tests
+
+- Compare the transient-selection theory with experiments.
+- Organize the data explicitly by \(t_f\) when possible.
+
+### Optional Figure 5 — Generality / stronger architecture
 
 - Use only if needed to support the claim of broader relevance beyond the minimal setup.
 
@@ -198,4 +205,4 @@ Emphasize that the mechanism should apply whenever training involves competing v
 
 ## One-Sentence Paper Claim
 
-**SGD selects flat minima not simply because they are statically favored, but because noise keeps the dynamics mobile across competing valleys until a late enough freezing time for the flatter valley to win.**
+**SGD selects flat minima not simply because they are statically favored, but because noise delays the freezing point at which basin competition is resolved, allowing selection to occur later along the evolving landscape where the flatter valley is more likely to prevail.**

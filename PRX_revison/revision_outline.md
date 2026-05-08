@@ -78,21 +78,29 @@ The decisive event is not final relaxation inside a valley, but the loss of inte
 
 ### Central idea
 
-Establish freezing time as the organizing variable linking stochastic dynamics to flat-minimum selection, without treating it as an independent causal knob detached from noise and landscape evolution.
+Move beyond the operational definition of \(t_f\). This section should show that \(t_f\) is the stopping-time variable through which SGD noise changes the final distribution over basins: stronger noise delays the loss of inter-valley mobility, and the geometry measured at the freezing checkpoint reflects the landscape slice at which commitment occurs.
+
+### Logical role after Section II
+
+Section II establishes that a measurable freezing time exists. Section III should make the nontrivial step: \(t_f\) is not just a post hoc label of commitment, but the stopping-time variable that organizes how stochasticity becomes a final basin choice.
 
 ### Main points
 
-- Measure how \(t_f\) changes with noise level, batch size, or learning-rate-controlled stochasticity.
+- First state the distinction from the previous section: the definition of \(t_f\) identifies when commitment occurs, but does not by itself explain why SGD noise changes the final basin distribution.
+- Measure how \(t_f\) changes with noise level, batch size, or learning-rate-controlled stochasticity using the continuation-based basin-stability definition.
 - Show that stronger noise delays freezing and keeps trajectories mobile across competing valleys for longer.
-- Show that basin identity becomes robust once freezing occurs, so the final outcome is effectively set at the freezing point.
-- Show that later freezing correlates with larger probability of ending in the flatter valley.
-- If available, show that flatter-valley selection collapses better as a function of \(t_f\) than as a function of raw noise strength, consistent with \(t_f\) acting as a mediator of the noise dependence.
+- Emphasize that this is not merely slower loss minimization or a different loss threshold; it is a delayed loss of basin-label variability under continuation.
+- Because cross-entropy keeps changing margins after accuracy saturates, avoid using final-time sharpness as the main geometry variable in this section.
+- Define a freezing-time flatness \(F_f=-\log_{10}S_{\rm rel}(\theta_{t_f})\), using row/filter-normalized relative perturbations, and interpret it as geometry at basin commitment.
+- Show that \(F_f\) collapses better as a function of \(\eta t_f\) than as a function of raw noise strength among continuation-stable trajectories that converge at the final checkpoint, consistent with \(t_f\) acting as a mediator of the noise dependence.
+- Use final test accuracy as the late-time performance outcome on the same final-converged stable trajectory set, while noting that final sharpness/test loss can include post-freezing CE relaxation.
+- Clarify that "basin selection is set at \(t_f\)" is not only definitional: changing SGD noise shifts \(t_f\), and the basin geometry at commitment follows that shift.
 - Emphasize that the final outcome depends on the landscape state and quasi-steady valley bias at the freezing point, not on \(t_f\) in isolation.
-- Connect delayed freezing to an increased probability of selecting flatter solutions and, secondarily, to improved generalization.
+- End by motivating the minimal model: the next task is to separate the fixed-slice valley bias from the noise-dependent stopping time at which that bias is inherited.
 
 ### Key takeaway
 
-Noise influences final basin selection primarily by shifting when freezing occurs; \(t_f\) is the physically meaningful stopping-time variable that organizes this dependence.
+Noise promotes flat-minimum selection primarily by delaying the stopping time at which inter-valley mobility is lost. The freezing time \(t_f\) is therefore the experimentally measurable mediator between SGD stochasticity and geometry at basin commitment, while the actual basin chosen still depends on the landscape and valley bias present at that freezing slice.
 
 ---
 
@@ -180,24 +188,32 @@ Emphasize that the mechanism should apply whenever training involves competing v
 
 - Combine the current early figures into one compact entry-point figure.
 - Include a schematic of valley hopping, continuation-training evidence, and an operational definition of \(t_f\).
-- End the figure with the key observation that stronger noise delays freezing.
+- End the figure with the key observation that basin identity becomes stable only after a measurable commitment time.
 
-### Figure 2 — Minimal theory and delayed freezing
+### Figure 2 — Freezing-time mediation
+
+- Panel A: show median continuation-based \(\eta t_f\) across batch size and learning rate, with stable-fraction annotations.
+- Panel B: show that individual stable-run freezing coordinates increase with effective SGD noise.
+- Panel C: use a left-right pair of plots comparing freezing-time flatness \(F_f=-\log_{10}S_{\rm rel}(\theta_{t_f})\) against effective noise and against \(\langle\eta t_f\rangle\), with point colors indicating learning rate and the \(\eta=0.1\) sweep omitted; include continuation-stable trajectories that converge at the final checkpoint.
+- Panel D: use the same left-right comparison for final test accuracy on the same final-converged stable trajectory set.
+- Explain in the caption/text that geometry is measured at \(t_f\) to avoid conflating basin commitment with post-freezing cross-entropy margin relaxation.
+
+### Figure 3 — Minimal theory and delayed freezing
 
 - Introduce the two-valley model.
 - Show hopping, freezing, and selection trends.
 
-### Figure 3 — Why static bias is insufficient
+### Figure 4 — Why static bias is insufficient
 
 - Present the fixed-landscape or quasi-steady intuition within the toy model.
 - Show clearly why it does not explain the full noise dependence of the final outcome.
 
-### Figure 4 — Quantitative predictions and experimental tests
+### Figure 5 — Quantitative predictions and experimental tests
 
 - Compare the transient-selection theory with experiments.
 - Organize the data explicitly by \(t_f\) when possible.
 
-### Optional Figure 5 — Generality / stronger architecture
+### Optional Figure 6 — Generality / stronger architecture
 
 - Use only if needed to support the claim of broader relevance beyond the minimal setup.
 

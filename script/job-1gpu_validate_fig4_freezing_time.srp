@@ -1,0 +1,153 @@
+#!/bin/bash
+#SBATCH -J ft_fig4
+#SBATCH -p gpu_2l
+#SBATCH -N 1
+#SBATCH -o ../err_out/ft_fig4_%j.out
+#SBATCH -e ../err_out/ft_fig4_%j.err
+#SBATCH --no-requeue
+#SBATCH -A tangc_g1
+#SBATCH --qos=tangcg2c
+#SBATCH --gres=gpu:1
+#SBATCH --overcommit
+#SBATCH --mincpus=7
+
+source /appsnew/source/Tensorflow1.13_Keras2.2_Pytorch1.1_py3.7.3_cuda9.sh
+# source /appsnew/source/Tensorflow2.5.0rc1_Keras2.4.3_keras-nightly2.5.0_torch1.8.1_py3.9.4_cuda11.2.2.sh
+set -euo pipefail
+
+CODE_DIR=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/Numerical_experiments
+DATA_ROOT=${CODE_DIR}/data
+CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_v2
+OUTPUT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_validation_fig4
+
+# Fig. 4 hyperparameters in the current manuscript code are B=50, eta=0.05.
+# The server checkpoint folder for the Fig. 4 validation run is:
+#   bs50_lr0.05_repeat2
+BATCH_SIZE=50
+LR=0.05
+REPEAT_START=2
+REPEAT_END=2
+SUBDIR_TEMPLATE='bs{batch_size}_lr{learning_rate:g}_repeat{repeat}'
+
+# The original non-MSE runs use cross-entropy.
+LOSS_TYPE=ce
+
+COMMON_ARGS="\
+  --data_dir ${DATA_ROOT} \
+  --checkpoint_dir ${CHECKPOINT_ROOT} \
+  --checkpoint_subdir_template ${SUBDIR_TEMPLATE} \
+  --batch_sizes ${BATCH_SIZE} \
+  --learning_rates ${LR} \
+  --repeat_start ${REPEAT_START} \
+  --repeat_end ${REPEAT_END} \
+  --reference_iteration auto \
+  --continuation_budget_mode to_reference \
+  --continuation_lr 0.05 \
+  --loss_type ${LOSS_TYPE} \
+  --coarse_checkpoint_stride 10 \
+  --fine_checkpoint_stride 1 \
+  --early_stop_loss -1 \
+  --min_continuation_steps 0 \
+  --max_continuation_steps 2000"
+
+mkdir -p "${OUTPUT_ROOT}"
+cd "${CODE_DIR}"
+JOB_START=$(date +%s)
+
+run_timed () {
+  LABEL="$1"
+  shift
+  START=$(date +%s)
+  echo "==== ${LABEL} started at $(date) ===="
+  "$@"
+  STATUS=$?
+  END=$(date +%s)
+  echo "==== ${LABEL} finished at $(date); elapsed $((END - START)) seconds; status ${STATUS} ===="
+  return ${STATUS}
+}
+
+require_file () {
+  TARGET="$1"
+  if [ ! -f "${TARGET}" ]; then
+    echo "ERROR: required file is missing: ${TARGET}" >&2
+    exit 1
+  fi
+}
+
+require_dir () {
+  TARGET="$1"
+  if [ ! -d "${TARGET}" ]; then
+    echo "ERROR: required directory is missing: ${TARGET}" >&2
+    echo "Check the previous compute_freezing_time.py output; the trajectory may have failed or the checkpoint folder may not exist." >&2
+    exit 1
+  fi
+}
+
+require_summary_ok () {
+  SUMMARY="$1"
+  require_file "${SUMMARY}"
+  python - "$SUMMARY" <<'PY'
+import csv
+import sys
+
+summary_path = sys.argv[1]
+with open(summary_path, newline="") as f:
+    rows = list(csv.DictReader(f))
+
+if not rows:
+    print("ERROR: summary has no rows: {}".format(summary_path), file=sys.stderr)
+    sys.exit(1)
+
+bad = [row for row in rows if row.get("status") != "ok"]
+if bad:
+    print("ERROR: non-ok rows in {}".format(summary_path), file=sys.stderr)
+    for row in bad:
+        print(
+            "  bs={batch_size} lr={learning_rate} repeat={repeat} status={status} message={message}".format(**row),
+            file=sys.stderr,
+        )
+    sys.exit(1)
+
+for row in rows:
+    print(
+        "OK summary: bs={batch_size} lr={learning_rate} repeat={repeat} "
+        "tf={tf} eta_tf={eta_tf} endpoints={num_endpoints_computed} "
+        "steps={computed_continuation_steps} wall={trajectory_wall_time_sec}s".format(**row)
+    )
+PY
+}
+
+echo "Dry run: check checkpoint discovery"
+run_timed "dry_run" python "${CODE_DIR}/compute_freezing_time.py" \
+  ${COMMON_ARGS} \
+  --output_dir "${OUTPUT_ROOT}/dry_run" \
+  --dry_run
+
+echo "Run Fig4-compatible Jaccard basin mode"
+run_timed "jaccard095" python "${CODE_DIR}/compute_freezing_time.py" \
+  ${COMMON_ARGS} \
+  --output_dir "${OUTPUT_ROOT}/jaccard095" \
+  --basin_mode jaccard \
+  --jaccard_threshold 0.95
+require_summary_ok "${OUTPUT_ROOT}/jaccard095/freezing_time_summary.csv"
+require_dir "${OUTPUT_ROOT}/jaccard095/endpoints"
+
+echo "Run prediction-vector basin mode"
+mkdir -p "${OUTPUT_ROOT}/pred099"
+if [ ! -d "${OUTPUT_ROOT}/pred099/endpoints" ]; then
+  cp -r "${OUTPUT_ROOT}/jaccard095/endpoints" "${OUTPUT_ROOT}/pred099/endpoints"
+fi
+run_timed "pred099" python "${CODE_DIR}/compute_freezing_time.py" \
+  ${COMMON_ARGS} \
+  --output_dir "${OUTPUT_ROOT}/pred099" \
+  --basin_mode pred \
+  --pred_threshold 0.99
+require_summary_ok "${OUTPUT_ROOT}/pred099/freezing_time_summary.csv"
+
+echo "Jaccard summary:"
+cat "${OUTPUT_ROOT}/jaccard095/freezing_time_summary.csv"
+
+echo "Prediction-vector summary:"
+cat "${OUTPUT_ROOT}/pred099/freezing_time_summary.csv"
+
+echo "Total validation job elapsed $(( $(date +%s) - JOB_START )) seconds"

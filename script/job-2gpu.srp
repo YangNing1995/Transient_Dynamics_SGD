@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH -J yn221114
+#SBATCH -p gpu_2l
+#SBATCH -N 1 
+#SBATCH -o yn221114_%j.out
+#SBATCH -e yn221114_%j.err
+#SBATCH --no-requeue
+#SBATCH -A tangc_g1
+#SBATCH --qos=tangcg2c
+#SBATCH --gres=gpu:1
+#SBATCH --overcommit
+#SBATCH --mincpus=7
+source /appsnew/source/Tensorflow2.5.0rc1_Keras2.4.3_keras-nightly2.5.0_torch1.8.1_py3.9.4_cuda11.2.2.sh
+python weight_dynamics_torch.py --batch-size 60000 --lr 0.05 --epochs 10

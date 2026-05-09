@@ -1,11 +1,10 @@
-"""Estimate scale-normalized sharpness of final SGD solutions.
+"""Estimate local sharpness/flatness of saved SGD solutions.
 
-This script is intentionally simpler than the Hessian pipeline: for each saved
-checkpoint it samples random parameter-space directions, rescales each
-parameter tensor's perturbation by that tensor's own norm, and measures the
-loss increase.  The resulting score is a relative perturbation sharpness,
-which is less tied to the absolute parameter scale than raw Hessian
-eigenvalues.
+For relative-sharpness definitions, this script samples random parameter-space
+directions, rescales each perturbation by the corresponding parameter norm, and
+measures the loss increase.  It also supports the original Hessian-eigenvalue
+flatness definition, evaluated either at the final checkpoint or at the
+continuation-defined freezing checkpoint.
 """
 
 from __future__ import annotations
@@ -19,8 +18,15 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils import data
 from torchvision import datasets
+try:
+    from torch.func import hessian
+    HESSIAN_IS_CURRIED = True
+except ImportError:  # Older torch versions used on some clusters.
+    from torch.autograd.functional import hessian
+    HESSIAN_IS_CURRIED = False
 
 from data_utils import get_transform
 from model import FCN
@@ -29,6 +35,10 @@ from model import FCN
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_BATCH_SIZES = [1000, 500, 200, 100, 50, 20, 10]
 DEFAULT_LEARNING_RATES = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+
+
+torch.backends.cuda.matmul.allow_tf32 = False
+torch.backends.cudnn.allow_tf32 = False
 
 
 def parse_args():
@@ -79,7 +89,8 @@ def parse_args():
         default="auto",
         help=(
             "Checkpoint to evaluate. Use 'auto'/'last' for the largest saved "
-            "checkpoint, 'product' for --lr_iteration_product / lr, or an integer."
+            "checkpoint, 'product' for --lr_iteration_product / lr, 'freezing' "
+            "for the continuation-defined t_f checkpoint, or an integer."
         ),
     )
     parser.add_argument(
@@ -96,19 +107,47 @@ def parse_args():
     )
     parser.add_argument(
         "--definition",
-        choices=["random_tensor", "random_filter", "asam_element"],
+        choices=["random_tensor", "random_filter", "asam_element", "hessian_topk"],
         default="random_tensor",
         help=(
             "Flatness definition. random_tensor is the original layer/tensor-wise "
             "relative random perturbation; random_filter normalizes each output "
-            "row/filter; asam_element uses an ASAM-style adaptive gradient direction."
+            "row/filter; asam_element uses an ASAM-style adaptive gradient direction; "
+            "hessian_topk uses the original geometric mean of top Hessian eigenvalues."
         ),
     )
     parser.add_argument(
         "--num_directions",
         type=int,
         default=10,
-        help="Number of random directions per checkpoint.",
+        help="Number of random directions per checkpoint; ignored by --definition hessian_topk.",
+    )
+    parser.add_argument(
+        "--hessian_topk",
+        type=int,
+        default=10,
+        help="Number of largest Hessian eigenvalues used by --definition hessian_topk.",
+    )
+    parser.add_argument(
+        "--hessian_layer_index",
+        type=int,
+        default=2,
+        help=(
+            "Index in model.state_dict() of the weight tensor used for Hessian "
+            "flatness. The legacy MLP pipeline used 2, i.e. the second Linear layer weight."
+        ),
+    )
+    parser.add_argument(
+        "--freezing_summary_root",
+        type=Path,
+        default=SCRIPT_DIR.parent / "freezing_time_all_ce" / "jaccard095",
+        help="Root containing bs*_lr*/freezing_time_summary.csv for --checkpoint_iteration freezing.",
+    )
+    parser.add_argument(
+        "--freeze_rounding",
+        choices=["ceil", "nearest", "floor"],
+        default="ceil",
+        help="How to map t_f to the saved checkpoint grid for --checkpoint_iteration freezing.",
     )
     parser.add_argument(
         "--symmetric",
@@ -282,7 +321,53 @@ def resolve_checkpoint_iteration(args, learning_rate: float, saved_iterations):
         return max(saved_iterations) if saved_iterations else None
     if spec == "product":
         return int(round(args.lr_iteration_product / learning_rate))
+    if spec == "freezing":
+        raise ValueError("Use resolve_checkpoint_for_trajectory for freezing checkpoints.")
     return int(spec)
+
+
+def load_freezing_rows(root: Path):
+    rows = {}
+    for path in sorted(root.glob("*/freezing_time_summary.csv")):
+        text = path.read_text(errors="ignore").replace("\x00", "")
+        for row in csv.DictReader(text.splitlines()):
+            try:
+                key = (
+                    int(float(row["batch_size"])),
+                    float(row["learning_rate"]),
+                    int(row["repeat"]),
+                )
+            except Exception:
+                continue
+            rows[key] = row
+    return rows
+
+
+def choose_checkpoint(iterations, target: float, mode: str):
+    if not iterations:
+        return None
+    values = np.asarray(iterations, dtype=float)
+    if mode == "nearest":
+        return int(values[np.argmin(np.abs(values - target))])
+    if mode == "floor":
+        candidates = values[values <= target]
+        return int(candidates[-1]) if candidates.size else int(values[0])
+    candidates = values[values >= target]
+    return int(candidates[0]) if candidates.size else int(values[-1])
+
+
+def resolve_checkpoint_for_trajectory(args, batch_size, learning_rate, repeat, saved_iterations, freezing_rows):
+    spec = str(args.checkpoint_iteration).strip().lower()
+    if spec != "freezing":
+        checkpoint = resolve_checkpoint_iteration(args, learning_rate, saved_iterations)
+        return checkpoint, math.nan, "", ""
+
+    row = freezing_rows.get((batch_size, learning_rate, repeat))
+    if row is None:
+        return None, math.nan, "", "missing freezing summary row"
+    tf = float(row["tf"])
+    checkpoint = choose_checkpoint(saved_iterations, tf, args.freeze_rounding)
+    return checkpoint, tf, row.get("confidence_flag", ""), ""
 
 
 def checkpoint_path(
@@ -326,6 +411,19 @@ def evaluate_loss_accuracy(model, loader, criterion, device: torch.device, max_b
     if total == 0:
         return math.nan, math.nan
     return total_loss / total, correct / total
+
+
+def first_eval_batch(loader, device: torch.device, max_batches: int = -1):
+    chunks = []
+    targets = []
+    for batch_idx, (batch_data, batch_target) in enumerate(loader):
+        if max_batches != -1 and batch_idx >= max_batches:
+            break
+        chunks.append(batch_data)
+        targets.append(batch_target)
+    if not chunks:
+        return None, None
+    return torch.cat(chunks, dim=0).to(device), torch.cat(targets, dim=0).to(device)
 
 
 def iter_perturbed_parameters(model, include_bias: bool):
@@ -519,7 +617,111 @@ def asam_element_sharpness_for_model(model, train_loader, criterion, device: tor
 def relative_sharpness_for_model(model, train_loader, criterion, device: torch.device, args):
     if args.definition == "asam_element":
         return asam_element_sharpness_for_model(model, train_loader, criterion, device, args)
+    if args.definition == "hessian_topk":
+        return hessian_topk_sharpness_for_model(model, train_loader, criterion, device, args)
     return random_relative_sharpness_for_model(model, train_loader, criterion, device, args)
+
+
+def fcn_forward_with_replacement(model, batch_data, target_layer_name: str, replacement: torch.Tensor):
+    """Forward pass for FCN with one parameter tensor replaced.
+
+    This avoids torch.func/torch.nn.utils.stateless.functional_call, which is
+    unavailable in the cluster's older PyTorch environment.
+    """
+    if not hasattr(model, "net") or len(model.net) < 6:
+        raise TypeError("Manual Hessian path currently supports the FCN model only")
+
+    def param(name: str, module, attr: str):
+        return replacement if name == target_layer_name else getattr(module, attr)
+
+    x = torch.flatten(batch_data, start_dim=1)
+    layer1 = model.net[1]
+    layer2 = model.net[3]
+    layer3 = model.net[5]
+    x = F.linear(x, param("net.1.weight", layer1, "weight"), param("net.1.bias", layer1, "bias"))
+    x = F.relu(x)
+    x = F.linear(x, param("net.3.weight", layer2, "weight"), param("net.3.bias", layer2, "bias"))
+    x = F.relu(x)
+    x = F.linear(x, param("net.5.weight", layer3, "weight"), param("net.5.bias", layer3, "bias"))
+    return x
+
+
+def compute_loss_stateless(model, batch_data, batch_target, criterion, target_layer_name, replacement):
+    output = fcn_forward_with_replacement(model, batch_data, target_layer_name, replacement)
+    return criterion(output, batch_target)
+
+
+def hessian_target_layer_name(model, layer_index: int) -> str:
+    names = list(model.state_dict().keys())
+    if layer_index < 0 or layer_index >= len(names):
+        raise IndexError(f"hessian_layer_index={layer_index} outside model.state_dict() with {len(names)} tensors")
+    name = names[layer_index]
+    if name not in dict(model.named_parameters()):
+        raise ValueError(f"Selected Hessian tensor {name!r} is not a trainable parameter")
+    return name
+
+
+def eigvalsh_descending(matrix: torch.Tensor) -> np.ndarray:
+    matrix = 0.5 * (matrix + matrix.t())
+
+    try:
+        return torch.linalg.eigvalsh(matrix).numpy()[::-1]
+    except Exception:
+        pass
+
+    if hasattr(torch, "symeig"):
+        try:
+            eigvals, _ = torch.symeig(matrix, eigenvectors=False)
+            return eigvals.numpy()[::-1]
+        except Exception:
+            pass
+
+    matrix_np = matrix.double().numpy()
+    matrix_np = 0.5 * (matrix_np + matrix_np.T)
+    try:
+        return np.linalg.eigvalsh(matrix_np)[::-1]
+    except Exception:
+        return np.asarray([math.nan])
+
+
+def hessian_topk_sharpness_for_model(model, train_loader, criterion, device: torch.device, args):
+    base_loss, base_acc = evaluate_loss_accuracy(
+        model,
+        train_loader,
+        criterion,
+        device,
+        max_batches=args.max_train_batches,
+    )
+    batch_data, batch_target = first_eval_batch(train_loader, device, args.max_train_batches)
+    if batch_data is None:
+        return base_loss, base_acc, np.asarray([math.nan]), np.asarray([math.nan]), np.asarray([math.nan])
+
+    target_layer_name = hessian_target_layer_name(model, args.hessian_layer_index)
+    params = dict(model.named_parameters())
+    target_weight = params[target_layer_name]
+
+    def loss_wrt_target_layer(w_target):
+        return compute_loss_stateless(model, batch_data, batch_target, criterion, target_layer_name, w_target)
+
+    if HESSIAN_IS_CURRIED:
+        H = hessian(loss_wrt_target_layer)(target_weight)
+    else:
+        H = hessian(loss_wrt_target_layer, target_weight)
+    H = H.reshape(target_weight.numel(), target_weight.numel())
+    H_cpu = H.detach().cpu()
+    if torch.isnan(H_cpu).any() or torch.isinf(H_cpu).any():
+        return base_loss, base_acc, np.asarray([math.nan]), np.asarray([math.nan]), np.asarray([math.nan])
+
+    eigvals = eigvalsh_descending(H_cpu)
+    k = min(int(args.hessian_topk), eigvals.size)
+    topk = np.real_if_close(eigvals[:k], tol=1000).real
+    if topk.size == 0 or np.any(topk <= 0):
+        sharpness = math.nan
+    else:
+        # Legacy flatness was prod(lambda_1...lambda_k)^(-1/k);
+        # therefore the corresponding sharpness is the geometric mean.
+        sharpness = float(np.exp(np.mean(np.log(topk))))
+    return base_loss, base_acc, np.asarray([sharpness]), topk, np.asarray([math.nan])
 
 
 def load_summary(path: Path):
@@ -539,9 +741,15 @@ def write_summary(path: Path, rows):
         "learning_rate",
         "repeat",
         "checkpoint_iteration",
+        "tf",
+        "eta_checkpoint",
+        "freeze_rounding",
+        "confidence_flag",
         "definition",
         "rho",
         "num_directions",
+        "hessian_topk",
+        "hessian_layer_index",
         "symmetric",
         "include_bias",
         "adaptive_epsilon",
@@ -555,7 +763,10 @@ def write_summary(path: Path, rows):
         "sharpness_median_delta",
         "sharpness_std_delta",
         "sharpness_mean_positive_delta",
+        "flatness_neg_log10",
         "relative_flatness_inverse",
+        "hessian_flatness",
+        "hessian_lambda_max",
         "min_delta",
         "max_delta",
         "wall_time_sec",
@@ -577,9 +788,15 @@ def make_error_row(batch_size, learning_rate, repeat, args, message):
         "learning_rate": learning_rate,
         "repeat": repeat,
         "checkpoint_iteration": "",
+        "tf": "",
+        "eta_checkpoint": "",
+        "freeze_rounding": args.freeze_rounding,
+        "confidence_flag": "",
         "definition": args.definition,
         "rho": args.rho,
         "num_directions": args.num_directions,
+        "hessian_topk": args.hessian_topk,
+        "hessian_layer_index": args.hessian_layer_index,
         "symmetric": args.symmetric,
         "include_bias": args.include_bias,
         "adaptive_epsilon": args.adaptive_epsilon,
@@ -590,7 +807,18 @@ def make_error_row(batch_size, learning_rate, repeat, args, message):
     }
 
 
-def scan_checkpoint(batch_size, learning_rate, repeat, model, train_loader, test_loader, criterion, device, args):
+def scan_checkpoint(
+    batch_size,
+    learning_rate,
+    repeat,
+    model,
+    train_loader,
+    test_loader,
+    criterion,
+    device,
+    args,
+    freezing_rows,
+):
     wall_start = time.perf_counter()
     saved_iterations = list_checkpoint_iterations(
         args.checkpoint_dir,
@@ -599,7 +827,14 @@ def scan_checkpoint(batch_size, learning_rate, repeat, model, train_loader, test
         learning_rate,
         repeat,
     )
-    checkpoint_iteration = resolve_checkpoint_iteration(args, learning_rate, saved_iterations)
+    checkpoint_iteration, tf, confidence_flag, checkpoint_error = resolve_checkpoint_for_trajectory(
+        args,
+        batch_size,
+        learning_rate,
+        repeat,
+        saved_iterations,
+        freezing_rows,
+    )
     if checkpoint_iteration is None:
         directory = trajectory_dir(
             args.checkpoint_dir,
@@ -608,7 +843,8 @@ def scan_checkpoint(batch_size, learning_rate, repeat, model, train_loader, test
             learning_rate,
             repeat,
         )
-        return make_error_row(batch_size, learning_rate, repeat, args, f"No checkpoints found in {directory}")
+        message = checkpoint_error or f"No checkpoints found in {directory}"
+        return make_error_row(batch_size, learning_rate, repeat, args, message)
 
     checkpoint_file = checkpoint_path(
         args.checkpoint_dir,
@@ -625,7 +861,7 @@ def scan_checkpoint(batch_size, learning_rate, repeat, model, train_loader, test
     model.load_state_dict(state_dict)
     model.to(device)
 
-    base_train_loss, base_train_acc, deltas, _, _ = relative_sharpness_for_model(
+    base_train_loss, base_train_acc, deltas, plus_losses, _ = relative_sharpness_for_model(
         model,
         train_loader,
         criterion,
@@ -635,15 +871,29 @@ def scan_checkpoint(batch_size, learning_rate, repeat, model, train_loader, test
     base_test_loss, base_test_acc = evaluate_loss_accuracy(model, test_loader, criterion, device)
     positive_deltas = np.maximum(deltas, 0.0)
     mean_positive = float(np.mean(positive_deltas))
+    flatness_neg_log10 = -math.log10(max(mean_positive, 1e-12)) if np.isfinite(mean_positive) else math.nan
+    flatness_inverse = float(1.0 / (1e-12 + mean_positive))
+    hessian_lambda_max = (
+        float(np.max(plus_losses))
+        if args.definition == "hessian_topk" and len(plus_losses) and np.isfinite(plus_losses).any()
+        else ""
+    )
+    hessian_flatness = flatness_inverse if args.definition == "hessian_topk" else ""
 
     return {
         "batch_size": batch_size,
         "learning_rate": learning_rate,
         "repeat": repeat,
         "checkpoint_iteration": checkpoint_iteration,
+        "tf": float(tf) if np.isfinite(tf) else "",
+        "eta_checkpoint": float(learning_rate * checkpoint_iteration),
+        "freeze_rounding": args.freeze_rounding if str(args.checkpoint_iteration).strip().lower() == "freezing" else "",
+        "confidence_flag": confidence_flag,
         "definition": args.definition,
         "rho": args.rho,
         "num_directions": args.num_directions,
+        "hessian_topk": args.hessian_topk,
+        "hessian_layer_index": args.hessian_layer_index,
         "symmetric": args.symmetric,
         "include_bias": args.include_bias,
         "adaptive_epsilon": args.adaptive_epsilon,
@@ -657,7 +907,10 @@ def scan_checkpoint(batch_size, learning_rate, repeat, model, train_loader, test
         "sharpness_median_delta": float(np.median(deltas)),
         "sharpness_std_delta": float(np.std(deltas, ddof=1)) if len(deltas) > 1 else 0.0,
         "sharpness_mean_positive_delta": mean_positive,
-        "relative_flatness_inverse": float(1.0 / (1e-12 + mean_positive)),
+        "flatness_neg_log10": flatness_neg_log10,
+        "relative_flatness_inverse": flatness_inverse,
+        "hessian_flatness": hessian_flatness,
+        "hessian_lambda_max": hessian_lambda_max,
         "min_delta": float(np.min(deltas)),
         "max_delta": float(np.max(deltas)),
         "wall_time_sec": float(time.perf_counter() - wall_start),
@@ -672,10 +925,18 @@ def main():
     args.data_dir = args.data_dir.resolve()
     args.checkpoint_dir = args.checkpoint_dir.resolve()
     args.output_dir = args.output_dir.resolve()
+    args.freezing_summary_root = args.freezing_summary_root.resolve()
 
     trajectories = selected_trajectories(args)
+    freezing_rows = (
+        load_freezing_rows(args.freezing_summary_root)
+        if str(args.checkpoint_iteration).strip().lower() == "freezing"
+        else {}
+    )
     if args.dry_run:
         print(f"Selected {len(trajectories)} trajectories")
+        if str(args.checkpoint_iteration).strip().lower() == "freezing":
+            print(f"Loaded {len(freezing_rows)} freezing rows from {args.freezing_summary_root}")
         for batch_size, learning_rate, repeat in trajectories[:30]:
             saved_iterations = list_checkpoint_iterations(
                 args.checkpoint_dir,
@@ -684,10 +945,18 @@ def main():
                 learning_rate,
                 repeat,
             )
-            checkpoint_iteration = resolve_checkpoint_iteration(args, learning_rate, saved_iterations)
+            checkpoint_iteration, tf, confidence_flag, error = resolve_checkpoint_for_trajectory(
+                args,
+                batch_size,
+                learning_rate,
+                repeat,
+                saved_iterations,
+                freezing_rows,
+            )
             print(
                 f"bs={batch_size:g} lr={learning_rate:g} repeat={repeat}: "
-                f"checkpoint={checkpoint_iteration}, saved={len(saved_iterations)}"
+                f"checkpoint={checkpoint_iteration}, tf={tf}, saved={len(saved_iterations)}, "
+                f"flag={confidence_flag}, error={error}"
             )
         if len(trajectories) > 30:
             print(f"... {len(trajectories) - 30} more")
@@ -698,11 +967,14 @@ def main():
     print(f"Dataset root: {args.data_dir}")
     print(f"Checkpoint root: {args.checkpoint_dir}")
     print(f"Output root: {args.output_dir}")
+    if str(args.checkpoint_iteration).strip().lower() == "freezing":
+        print(f"Freezing summary root: {args.freezing_summary_root}; rows={len(freezing_rows)}")
     print(
         "Sharpness settings: "
         f"definition={args.definition}, rho={args.rho}, directions={args.num_directions}, "
         f"symmetric={args.symmetric}, include_bias={args.include_bias}, "
-        f"adaptive_epsilon={args.adaptive_epsilon}, max_train_batches={args.max_train_batches}"
+        f"adaptive_epsilon={args.adaptive_epsilon}, max_train_batches={args.max_train_batches}, "
+        f"hessian_topk={args.hessian_topk}, hessian_layer_index={args.hessian_layer_index}"
     )
 
     train_loader, test_loader, train_count, test_count = make_loaders(args)
@@ -731,6 +1003,7 @@ def main():
             criterion,
             device,
             args,
+            freezing_rows,
         )
         summary_rows[key] = row
         write_summary(summary_path, summary_rows)

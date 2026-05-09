@@ -91,7 +91,7 @@ Section II establishes that a measurable freezing time exists. Section III shoul
 - Show that stronger noise delays freezing and keeps trajectories mobile across competing valleys for longer.
 - Emphasize that this is not merely slower loss minimization or a different loss threshold; it is a delayed loss of basin-label variability under continuation.
 - Because cross-entropy keeps changing margins after accuracy saturates, avoid using final-time sharpness as the main geometry variable in this section.
-- Define a freezing-time flatness \(F_f=-\log_{10}S_{\rm rel}(\theta_{t_f})\), using row/filter-normalized relative perturbations, and interpret it as geometry at basin commitment.
+- Define a freezing-time flatness \(F_f=-\log_{10}S_{\rm nw}(\theta_{t_f})\), using neuron-wise relative sharpness, and interpret it as geometry at basin commitment.
 - Show that \(F_f\) collapses better as a function of \(\eta t_f\) than as a function of raw noise strength among continuation-stable trajectories that converge at the final checkpoint, consistent with \(t_f\) acting as a mediator of the noise dependence.
 - Use final test accuracy as the late-time performance outcome on the same final-converged stable trajectory set, while noting that final sharpness/test loss can include post-freezing CE relaxation.
 - Clarify that "basin selection is set at \(t_f\)" is not only definitional: changing SGD noise shifts \(t_f\), and the basin geometry at commitment follows that shift.
@@ -194,7 +194,7 @@ Emphasize that the mechanism should apply whenever training involves competing v
 
 - Panel A: show median continuation-based \(\eta t_f\) across batch size and learning rate, with stable-fraction annotations.
 - Panel B: show that individual stable-run freezing coordinates increase with effective SGD noise.
-- Panel C: use a left-right pair of plots comparing freezing-time flatness \(F_f=-\log_{10}S_{\rm rel}(\theta_{t_f})\) against effective noise and against \(\langle\eta t_f\rangle\), with point colors indicating learning rate and the \(\eta=0.1\) sweep omitted; include continuation-stable trajectories that converge at the final checkpoint.
+- Panel C: use a left-right pair of plots comparing freezing-time flatness \(F_f=-\log_{10}S_{\rm nw}(\theta_{t_f})\) against effective noise and against \(\langle\eta t_f\rangle\), with point colors indicating learning rate and the \(\eta=0.1\) sweep omitted; include continuation-stable trajectories that converge at the final checkpoint.
 - Panel D: use the same left-right comparison for final test accuracy on the same final-converged stable trajectory set.
 - Explain in the caption/text that geometry is measured at \(t_f\) to avoid conflating basin commitment with post-freezing cross-entropy margin relaxation.
 

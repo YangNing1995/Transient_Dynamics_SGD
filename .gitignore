@@ -251,3 +251,4 @@ Plot_figures/Fig2_freezing_time_relative_sharpness.py
 relative_sharpness_all_ce/asam_element_rho0.05/relative_sharpness_summary.csv
 relative_sharpness_all_ce/random_filter_rho0.05_k20/relative_sharpness_summary.csv
 relative_sharpness_all_ce/rho0.05_k20/relative_sharpness_summary.csv
+freezing_hessian_flatness_all_ce/

@@ -11,9 +11,20 @@ $texFile = 'manuscript_PRX_transient_freezing_draft.tex'
 $jobName = [System.IO.Path]::GetFileNameWithoutExtension($texFile)
 
 function Remove-BuildAuxFiles {
+    param(
+        [switch]$KeepBbl
+    )
+
     $extensions = @(
         'aux', 'bcf', 'blg', 'fdb_latexmk', 'fls',
         'log', 'out', 'run.xml', 'synctex.gz', 'synctex(busy)', 'toc'
+    )
+    if (-not $KeepBbl) {
+        $extensions += 'bbl'
+    }
+
+    $generatedFileNames = @(
+        "${jobName}Notes.bib"
     )
 
     for ($attempt = 1; $attempt -le 20; $attempt++) {
@@ -21,6 +32,12 @@ function Remove-BuildAuxFiles {
             $auxPath = Join-Path $here "$jobName.$extension"
             if (Test-Path -LiteralPath $auxPath) {
                 Remove-Item -LiteralPath $auxPath -Force -ErrorAction SilentlyContinue
+            }
+        }
+        foreach ($fileName in $generatedFileNames) {
+            $generatedPath = Join-Path $here $fileName
+            if (Test-Path -LiteralPath $generatedPath) {
+                Remove-Item -LiteralPath $generatedPath -Force -ErrorAction SilentlyContinue
             }
         }
 
@@ -32,6 +49,12 @@ function Remove-BuildAuxFiles {
             $auxPath = Join-Path $here "$jobName.$extension"
             if (Test-Path -LiteralPath $auxPath) {
                 $remaining += $auxPath
+            }
+        }
+        foreach ($fileName in $generatedFileNames) {
+            $generatedPath = Join-Path $here $fileName
+            if (Test-Path -LiteralPath $generatedPath) {
+                $remaining += $generatedPath
             }
         }
         $remaining += @(Get-ChildItem -LiteralPath $here -Filter 'pdflatex*.fls' -Force -ErrorAction SilentlyContinue)
@@ -73,7 +96,7 @@ try {
         # Keep the .bbl so the first LaTeX pass in a clean build does not emit
         # a misleading missing-bibliography diagnostic; BibTeX will refresh it.
         Write-Host 'Cleaning auxiliary files before build.'
-        Remove-BuildAuxFiles
+        Remove-BuildAuxFiles -KeepBbl
     }
 
     latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error $texFile
@@ -82,7 +105,7 @@ try {
     }
     Wait-TeXProcesses
 
-    if ($CleanAfter) {
+    if ($CleanAux -or $CleanAfter) {
         Write-Host 'Cleaning auxiliary files after successful build.'
         # On Windows the TeX Live wrapper can return before child processes
         # finish writing aux files, so clean directly and retry instead of

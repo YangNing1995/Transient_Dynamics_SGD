@@ -26,7 +26,7 @@ DEFAULT_LEARNING_RATES = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
 
 
 def parse_args():
-    parser = ArgumentParser(description="Compute random-filter flatness at freezing time t_f.")
+    parser = ArgumentParser(description="Compute relative sharpness/flatness at freezing time t_f.")
     parser.add_argument("--dataset_name", type=str, default="MNIST")
     parser.add_argument("--data_dir", type=Path, default=SCRIPT_DIR / "data")
     parser.add_argument("--download_data", action="store_true")
@@ -58,15 +58,18 @@ def parse_args():
     )
     parser.add_argument(
         "--definition",
-        choices=["random_tensor", "random_filter", "asam_element"],
-        default="random_filter",
+        choices=("tensor_wise", "neuron_wise"),
+        default="neuron_wise",
+        help=(
+            "Flatness definition. tensor_wise normalizes each full parameter tensor; "
+            "neuron_wise normalizes each output-neuron row/filter."
+        ),
     )
     parser.add_argument("--rho", type=float, default=0.05)
     parser.add_argument("--num_directions", type=int, default=20)
     parser.add_argument("--symmetric", action="store_true")
     parser.add_argument("--include_bias", action="store_true")
     parser.add_argument("--relative_floor", type=float, default=1e-12)
-    parser.add_argument("--adaptive_epsilon", type=float, default=1e-12)
     parser.add_argument("--eval_batch_size", type=int, default=-1)
     parser.add_argument("--max_train_batches", type=int, default=-1)
     parser.add_argument("--loss_type", choices=["ce", "mse_logits", "mse_softmax"], default="ce")

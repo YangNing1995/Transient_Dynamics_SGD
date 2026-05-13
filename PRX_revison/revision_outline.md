@@ -190,10 +190,9 @@ Emphasize that the mechanism should apply whenever training involves competing v
 - Include a schematic of valley hopping, continuation-training evidence, and an operational definition of \(t_f\).
 - End the figure with the key observation that basin identity becomes stable only after a measurable commitment time.
 
-### Figure 2 — Freezing-time mediation
+### Figure 2 — Freezing-time organization
 
 - Panel A: show median continuation-based \(\eta t_f\) across batch size and learning rate, with stable-fraction annotations.
-- Panel B: show that individual stable-run freezing coordinates increase with effective SGD noise.
 - Panel C: use a left-right pair of plots comparing freezing-time flatness \(F_f=-\log_{10}S_{\rm nw}(\theta_{t_f})\) against effective noise and against \(\langle\eta t_f\rangle\), with point colors indicating learning rate and the \(\eta=0.1\) sweep omitted; include continuation-stable trajectories that converge at the final checkpoint.
 - Panel D: use the same left-right comparison for final test accuracy on the same final-converged stable trajectory set.
 - Explain in the caption/text that geometry is measured at \(t_f\) to avoid conflating basin commitment with post-freezing cross-entropy margin relaxation.

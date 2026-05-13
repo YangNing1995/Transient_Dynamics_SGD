@@ -1,10 +1,9 @@
 """Estimate local sharpness/flatness of saved SGD solutions.
 
-For relative-sharpness definitions, this script samples random parameter-space
-directions, rescales each perturbation by the corresponding parameter norm, and
-measures the loss increase.  It also supports the original Hessian-eigenvalue
-flatness definition, evaluated either at the final checkpoint or at the
-continuation-defined freezing checkpoint.
+Supported definitions:
+  - tensor_wise: random directions normalized by each full parameter tensor.
+  - neuron_wise: random directions normalized by each output neuron/filter row.
+  - hessian_topk: geometric mean of the largest Hessian eigenvalues.
 """
 
 from __future__ import annotations
@@ -35,6 +34,7 @@ from model import FCN
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_BATCH_SIZES = [1000, 500, 200, 100, 50, 20, 10]
 DEFAULT_LEARNING_RATES = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+SUPPORTED_DEFINITIONS = ("tensor_wise", "neuron_wise", "hessian_topk")
 
 
 torch.backends.cuda.matmul.allow_tf32 = False
@@ -107,13 +107,12 @@ def parse_args():
     )
     parser.add_argument(
         "--definition",
-        choices=["random_tensor", "random_filter", "asam_element", "hessian_topk"],
-        default="random_tensor",
+        choices=SUPPORTED_DEFINITIONS,
+        default="tensor_wise",
         help=(
-            "Flatness definition. random_tensor is the original layer/tensor-wise "
-            "relative random perturbation; random_filter normalizes each output "
-            "row/filter; asam_element uses an ASAM-style adaptive gradient direction; "
-            "hessian_topk uses the original geometric mean of top Hessian eigenvalues."
+            "Flatness definition. tensor_wise normalizes each full parameter tensor; "
+            "neuron_wise normalizes each output-neuron row/filter; hessian_topk "
+            "uses the geometric mean of the largest Hessian eigenvalues."
         ),
     )
     parser.add_argument(
@@ -134,7 +133,7 @@ def parse_args():
         default=2,
         help=(
             "Index in model.state_dict() of the weight tensor used for Hessian "
-            "flatness. The legacy MLP pipeline used 2, i.e. the second Linear layer weight."
+            "flatness. For the current FCN, 2 is the second Linear layer weight."
         ),
     )
     parser.add_argument(
@@ -167,12 +166,6 @@ def parse_args():
         type=float,
         default=1e-12,
         help="Minimum tensor norm used when a parameter tensor is nearly zero.",
-    )
-    parser.add_argument(
-        "--adaptive_epsilon",
-        type=float,
-        default=1e-12,
-        help="Element-wise scale floor used by --definition asam_element.",
     )
     parser.add_argument(
         "--eval_batch_size",
@@ -426,6 +419,10 @@ def first_eval_batch(loader, device: torch.device, max_batches: int = -1):
     return torch.cat(chunks, dim=0).to(device), torch.cat(targets, dim=0).to(device)
 
 
+# ---------------------------------------------------------------------------
+# Relative random perturbation definitions
+# ---------------------------------------------------------------------------
+
 def iter_perturbed_parameters(model, include_bias: bool):
     for name, param in model.named_parameters():
         if not param.requires_grad:
@@ -452,6 +449,7 @@ def sample_tensor_relative_direction(model, include_bias: bool, relative_floor: 
 
 
 def normalize_rows(direction: torch.Tensor, reference: torch.Tensor, relative_floor: float) -> torch.Tensor:
+    """Normalize each output row/filter to the matching parameter row norm."""
     flat_direction = direction.reshape(direction.shape[0], -1)
     flat_reference = reference.reshape(reference.shape[0], -1)
     direction_norm = torch.norm(flat_direction, dim=1, keepdim=True).clamp(min=relative_floor)
@@ -459,7 +457,8 @@ def normalize_rows(direction: torch.Tensor, reference: torch.Tensor, relative_fl
     return (flat_direction * (reference_norm / direction_norm)).reshape_as(direction)
 
 
-def sample_filter_relative_direction(model, include_bias: bool, relative_floor: float):
+def sample_neuron_relative_direction(model, include_bias: bool, relative_floor: float):
+    """Sample a neuron-wise relative direction without changing the existing math."""
     directions = []
     with torch.no_grad():
         for name, param in iter_perturbed_parameters(model, include_bias):
@@ -497,8 +496,8 @@ def random_relative_sharpness_for_model(model, train_loader, criterion, device: 
         if device.type == "cuda":
             torch.cuda.manual_seed_all(args.seed + 1009 * direction_idx)
 
-        if args.definition == "random_filter":
-            directions = sample_filter_relative_direction(model, args.include_bias, args.relative_floor)
+        if args.definition == "neuron_wise":
+            directions = sample_neuron_relative_direction(model, args.include_bias, args.relative_floor)
         else:
             directions = sample_tensor_relative_direction(model, args.include_bias, args.relative_floor)
         add_direction(directions, args.rho)
@@ -533,94 +532,15 @@ def random_relative_sharpness_for_model(model, train_loader, criterion, device: 
     return base_loss, base_acc, np.asarray(deltas), np.asarray(plus_losses), np.asarray(minus_losses)
 
 
-def compute_gradients(model, train_loader, criterion, device: torch.device, max_batches: int):
-    model.train()
-    model.zero_grad()
-    total_loss = 0.0
-    total = 0
-    for batch_idx, (batch_data, batch_target) in enumerate(train_loader):
-        if max_batches != -1 and batch_idx >= max_batches:
-            break
-        batch_data = batch_data.to(device)
-        batch_target = batch_target.to(device)
-        output = model(batch_data)
-        loss = criterion(output, batch_target)
-        weighted_loss = loss * batch_target.size(0)
-        weighted_loss.backward()
-        total_loss += weighted_loss.item()
-        total += batch_target.size(0)
-
-    if total == 0:
-        return math.nan, math.nan, []
-
-    correct = 0
-    with torch.no_grad():
-        for batch_idx, (batch_data, batch_target) in enumerate(train_loader):
-            if max_batches != -1 and batch_idx >= max_batches:
-                break
-            batch_data = batch_data.to(device)
-            batch_target = batch_target.to(device)
-            pred = model(batch_data).argmax(dim=1)
-            correct += pred.eq(batch_target).sum().item()
-
-    grads = []
-    for name, param in model.named_parameters():
-        if not param.requires_grad:
-            continue
-        grad = torch.zeros_like(param) if param.grad is None else param.grad.detach().clone() / float(total)
-        grads.append((name, param, grad))
-    model.zero_grad()
-    return total_loss / float(total), correct / float(total), grads
-
-
-def asam_element_sharpness_for_model(model, train_loader, criterion, device: torch.device, args):
-    base_loss, base_acc, grads = compute_gradients(model, train_loader, criterion, device, args.max_train_batches)
-    if not np.isfinite(base_loss):
-        return base_loss, base_acc, np.asarray([math.nan]), np.asarray([math.nan]), np.asarray([math.nan])
-
-    selected = [
-        (name, param, grad)
-        for name, param, grad in grads
-        if args.include_bias or param.ndim >= 2
-    ]
-    denom_sq = None
-    scales = []
-    for _, param, grad in selected:
-        scale = param.detach().abs() + args.adaptive_epsilon
-        scales.append(scale)
-        term = torch.sum((scale * grad) * (scale * grad))
-        denom_sq = term if denom_sq is None else denom_sq + term
-
-    if denom_sq is None:
-        delta = math.nan
-        return base_loss, base_acc, np.asarray([delta]), np.asarray([math.nan]), np.asarray([math.nan])
-
-    denom = torch.sqrt(torch.clamp(denom_sq, min=args.relative_floor * args.relative_floor))
-    directions = []
-    for (name, param, grad), scale in zip(selected, scales):
-        direction = args.rho * scale * scale * grad / denom
-        directions.append((name, param, direction))
-
-    add_direction(directions, 1.0)
-    plus_loss, _ = evaluate_loss_accuracy(
-        model,
-        train_loader,
-        criterion,
-        device,
-        max_batches=args.max_train_batches,
-    )
-    add_direction(directions, -1.0)
-    delta = plus_loss - base_loss
-    return base_loss, base_acc, np.asarray([delta]), np.asarray([plus_loss]), np.asarray([math.nan])
-
-
 def relative_sharpness_for_model(model, train_loader, criterion, device: torch.device, args):
-    if args.definition == "asam_element":
-        return asam_element_sharpness_for_model(model, train_loader, criterion, device, args)
     if args.definition == "hessian_topk":
         return hessian_topk_sharpness_for_model(model, train_loader, criterion, device, args)
     return random_relative_sharpness_for_model(model, train_loader, criterion, device, args)
 
+
+# ---------------------------------------------------------------------------
+# Hessian top-k definition
+# ---------------------------------------------------------------------------
 
 def fcn_forward_with_replacement(model, batch_data, target_layer_name: str, replacement: torch.Tensor):
     """Forward pass for FCN with one parameter tensor replaced.
@@ -752,7 +672,6 @@ def write_summary(path: Path, rows):
         "hessian_layer_index",
         "symmetric",
         "include_bias",
-        "adaptive_epsilon",
         "max_train_batches",
         "loss_type",
         "base_train_loss",
@@ -799,7 +718,6 @@ def make_error_row(batch_size, learning_rate, repeat, args, message):
         "hessian_layer_index": args.hessian_layer_index,
         "symmetric": args.symmetric,
         "include_bias": args.include_bias,
-        "adaptive_epsilon": args.adaptive_epsilon,
         "max_train_batches": args.max_train_batches,
         "loss_type": args.loss_type,
         "status": "missing",
@@ -896,7 +814,6 @@ def scan_checkpoint(
         "hessian_layer_index": args.hessian_layer_index,
         "symmetric": args.symmetric,
         "include_bias": args.include_bias,
-        "adaptive_epsilon": args.adaptive_epsilon,
         "max_train_batches": args.max_train_batches,
         "loss_type": args.loss_type,
         "base_train_loss": float(base_train_loss),
@@ -973,7 +890,7 @@ def main():
         "Sharpness settings: "
         f"definition={args.definition}, rho={args.rho}, directions={args.num_directions}, "
         f"symmetric={args.symmetric}, include_bias={args.include_bias}, "
-        f"adaptive_epsilon={args.adaptive_epsilon}, max_train_batches={args.max_train_batches}, "
+        f"max_train_batches={args.max_train_batches}, "
         f"hessian_topk={args.hessian_topk}, hessian_layer_index={args.hessian_layer_index}"
     )
 

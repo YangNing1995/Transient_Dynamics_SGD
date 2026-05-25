@@ -252,3 +252,5 @@ relative_sharpness_all_ce/random_filter_rho0.05_k20/relative_sharpness_summary.c
 relative_sharpness_all_ce/rho0.05_k20/relative_sharpness_summary.csv
 freezing_hessian_flatness_all_ce/
 freezing_flatness_three_methods_ce/
+freezing_time_training_lr_pilot_r1_ce/
+freezing_time_training_lr_r1-5_ce/

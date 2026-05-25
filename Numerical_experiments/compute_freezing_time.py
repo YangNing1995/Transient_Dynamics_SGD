@@ -31,6 +31,21 @@ from model import FCN
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_BATCH_SIZES = [1000, 500, 200, 100, 50, 20, 10]
 DEFAULT_LEARNING_RATES = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+ENDPOINT_CACHE_METADATA_KEYS = [
+    "dataset_name",
+    "data_dir",
+    "download_data",
+    "train_num",
+    "test_num",
+    "hidden_num",
+    "checkpoint_subdir_template",
+    "reference_iteration",
+    "continuation_lr",
+    "continuation_batch_size",
+    "max_continuation_steps",
+    "continuation_budget_mode",
+    "loss_type",
+]
 
 
 @dataclass
@@ -163,9 +178,13 @@ def parse_args():
     )
     parser.add_argument(
         "--continuation_lr",
-        type=float,
-        default=0.05,
-        help="Learning rate for the deterministic continuation probe.",
+        type=str,
+        default="0.05",
+        help=(
+            "Learning rate for the deterministic continuation probe. Use a "
+            "number for a fixed probe LR, or 'training'/'trajectory' to reuse "
+            "the learning rate of each scanned trajectory."
+        ),
     )
     parser.add_argument(
         "--loss_type",
@@ -183,6 +202,17 @@ def parse_args():
         help="Batch size for continuation. Use -1 for full train set.",
     )
     parser.add_argument("--max_continuation_steps", type=int, default=2000)
+    parser.add_argument(
+        "--max_continuation_eta_product",
+        type=float,
+        default=None,
+        help=(
+            "If set in fixed-budget mode, choose max continuation steps per "
+            "trajectory as ceil(value / continuation_lr), keeping "
+            "continuation_lr * max_steps constant. Example: 100 preserves the "
+            "old 0.05 * 2000 continuation horizon."
+        ),
+    )
     parser.add_argument(
         "--continuation_budget_mode",
         choices=["fixed", "to_reference"],
@@ -399,9 +429,12 @@ def write_summary(path: Path, rows: dict[tuple[int, float, int], dict[str, objec
         "pred_threshold",
         "jaccard_threshold",
         "continuation_lr",
+        "continuation_lr_spec",
         "loss_type",
         "continuation_budget_mode",
         "max_continuation_steps",
+        "max_continuation_steps_spec",
+        "max_continuation_eta_product",
         "num_endpoints_computed",
         "num_cached_endpoints",
         "computed_continuation_steps",
@@ -447,6 +480,32 @@ def load_endpoint_cache(path: Path) -> dict[int, Endpoint]:
             runtime_seconds=float(runtime_seconds[idx]),
         )
     return endpoints
+
+
+def load_cache_metadata(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    data_npz = np.load(path, allow_pickle=True)
+    if "metadata_json" not in data_npz.files:
+        return {}
+    try:
+        raw = data_npz["metadata_json"]
+        if hasattr(raw, "item"):
+            raw = raw.item()
+        return json.loads(str(raw))
+    except json.JSONDecodeError:
+        return {}
+
+
+def cache_metadata_matches(path: Path, metadata: dict[str, object]) -> bool:
+    cached = load_cache_metadata(path)
+    if not cached:
+        return False
+    for key in ENDPOINT_CACHE_METADATA_KEYS:
+        value = metadata.get(key)
+        if cached.get(key) != value:
+            return False
+    return True
 
 
 def save_endpoint_cache(path: Path, endpoints: dict[int, Endpoint], metadata: dict[str, object]) -> None:
@@ -495,6 +554,21 @@ def evaluate_endpoint(model, loader, criterion, device: torch.device) -> tuple[f
     return total_loss / total, correct / total, pred_np, wrong_indices
 
 
+def resolve_continuation_lr(args, learning_rate: float) -> float:
+    spec = str(args.continuation_lr).strip().lower()
+    if spec in {"training", "trajectory", "same", "match", "eta"}:
+        return float(learning_rate)
+    return float(args.continuation_lr)
+
+
+def resolve_max_continuation_steps(args, continuation_lr: float) -> int:
+    if args.max_continuation_eta_product is None:
+        return int(args.max_continuation_steps)
+    if continuation_lr <= 0:
+        raise ValueError("continuation_lr must be positive when using --max_continuation_eta_product.")
+    return int(math.ceil(float(args.max_continuation_eta_product) / float(continuation_lr)))
+
+
 def run_continuation_to_endpoint(
     model: torch.nn.Module,
     checkpoint_file: Path,
@@ -504,6 +578,7 @@ def run_continuation_to_endpoint(
     device: torch.device,
     args,
     continuation_steps_budget: int,
+    continuation_lr: float,
 ) -> Endpoint:
     endpoint_start = time.perf_counter()
     state_dict = torch.load(checkpoint_file, map_location=device)
@@ -511,7 +586,7 @@ def run_continuation_to_endpoint(
     model.to(device)
     model.train()
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.continuation_lr)
+    optimizer = torch.optim.SGD(model.parameters(), lr=continuation_lr)
     loader_iter = iter(train_loader)
     converged = False
     patience_count = 0
@@ -648,10 +723,10 @@ def confidence_flag(
     return "medium_adaptive"
 
 
-def continuation_budget_for(checkpoint_t: int, reference_t: int, args) -> int:
+def continuation_budget_for(checkpoint_t: int, reference_t: int, args, max_continuation_steps: int) -> int:
     if args.continuation_budget_mode == "to_reference":
         return max(int(reference_t) - int(checkpoint_t), 0)
-    return args.max_continuation_steps
+    return max_continuation_steps
 
 
 def get_or_compute_endpoint(
@@ -665,6 +740,7 @@ def get_or_compute_endpoint(
     device: torch.device,
     args,
     continuation_steps_budget: int,
+    continuation_lr: float,
     cache_file: Path,
     metadata: dict[str, object],
 ) -> tuple[Endpoint, bool]:
@@ -679,6 +755,7 @@ def get_or_compute_endpoint(
         device,
         args,
         continuation_steps_budget,
+        continuation_lr,
     )
     endpoint.checkpoint_t = checkpoint_t
     endpoints[checkpoint_t] = endpoint
@@ -698,6 +775,8 @@ def scan_trajectory(
     args,
 ) -> dict[str, object]:
     trajectory_start = time.perf_counter()
+    continuation_lr = resolve_continuation_lr(args, learning_rate)
+    max_continuation_steps = resolve_max_continuation_steps(args, continuation_lr)
     root = args.checkpoint_dir
     saved_iterations = list_checkpoint_iterations(
         root, args.checkpoint_subdir_template, batch_size, learning_rate, repeat
@@ -722,10 +801,13 @@ def scan_trajectory(
             "basin_mode": args.basin_mode,
             "pred_threshold": args.pred_threshold,
             "jaccard_threshold": args.jaccard_threshold,
-            "continuation_lr": args.continuation_lr,
+            "continuation_lr": continuation_lr,
+            "continuation_lr_spec": str(args.continuation_lr),
             "loss_type": args.loss_type,
             "continuation_budget_mode": args.continuation_budget_mode,
-            "max_continuation_steps": args.max_continuation_steps,
+            "max_continuation_steps": max_continuation_steps,
+            "max_continuation_steps_spec": args.max_continuation_steps,
+            "max_continuation_eta_product": args.max_continuation_eta_product,
             "num_endpoints_computed": 0,
             "num_cached_endpoints": 0,
             "computed_continuation_steps": 0,
@@ -762,10 +844,13 @@ def scan_trajectory(
             "basin_mode": args.basin_mode,
             "pred_threshold": args.pred_threshold,
             "jaccard_threshold": args.jaccard_threshold,
-            "continuation_lr": args.continuation_lr,
+            "continuation_lr": continuation_lr,
+            "continuation_lr_spec": str(args.continuation_lr),
             "loss_type": args.loss_type,
             "continuation_budget_mode": args.continuation_budget_mode,
-            "max_continuation_steps": args.max_continuation_steps,
+            "max_continuation_steps": max_continuation_steps,
+            "max_continuation_steps_spec": args.max_continuation_steps,
+            "max_continuation_eta_product": args.max_continuation_eta_product,
             "num_endpoints_computed": 0,
             "num_cached_endpoints": 0,
             "computed_continuation_steps": 0,
@@ -779,10 +864,6 @@ def scan_trajectory(
             "message": str(ref_checkpoint),
         }
 
-    cache_file = cache_path(args.output_dir, batch_size, learning_rate, repeat)
-    endpoints = {} if args.overwrite_cache else load_endpoint_cache(cache_file)
-    cached_before = len(endpoints)
-    cached_times_before = set(endpoints)
     metadata = {
         "dataset_name": args.dataset_name,
         "data_dir": str(args.data_dir),
@@ -791,15 +872,24 @@ def scan_trajectory(
         "test_num": args.test_num,
         "hidden_num": args.hidden_num,
         "checkpoint_subdir_template": args.checkpoint_subdir_template,
-        "continuation_lr": args.continuation_lr,
+        "reference_iteration": ref_t,
+        "continuation_lr": continuation_lr,
+        "continuation_lr_spec": str(args.continuation_lr),
         "continuation_batch_size": args.continuation_batch_size,
-        "max_continuation_steps": args.max_continuation_steps,
+        "max_continuation_steps": max_continuation_steps,
+        "max_continuation_steps_spec": args.max_continuation_steps,
+        "max_continuation_eta_product": args.max_continuation_eta_product,
         "continuation_budget_mode": args.continuation_budget_mode,
         "loss_type": args.loss_type,
         "basin_mode": args.basin_mode,
         "pred_threshold": args.pred_threshold,
         "jaccard_threshold": args.jaccard_threshold,
     }
+    cache_file = cache_path(args.output_dir, batch_size, learning_rate, repeat)
+    use_cache = (not args.overwrite_cache) and cache_metadata_matches(cache_file, metadata)
+    endpoints = load_endpoint_cache(cache_file) if use_cache else {}
+    cached_before = len(endpoints)
+    cached_times_before = set(endpoints)
 
     reference, _ = get_or_compute_endpoint(
         ref_t,
@@ -811,7 +901,8 @@ def scan_trajectory(
         criterion,
         device,
         args,
-        continuation_budget_for(ref_t, ref_t, args),
+        continuation_budget_for(ref_t, ref_t, args, max_continuation_steps),
+        continuation_lr,
         cache_file,
         metadata,
     )
@@ -844,7 +935,8 @@ def scan_trajectory(
             criterion,
             device,
             args,
-            continuation_budget_for(checkpoint_t, ref_t, args),
+            continuation_budget_for(checkpoint_t, ref_t, args, max_continuation_steps),
+            continuation_lr,
             cache_file,
             metadata,
         )
@@ -887,7 +979,8 @@ def scan_trajectory(
                 criterion,
                 device,
                 args,
-                continuation_budget_for(checkpoint_t, ref_t, args),
+                continuation_budget_for(checkpoint_t, ref_t, args, max_continuation_steps),
+                continuation_lr,
                 cache_file,
                 metadata,
             )
@@ -923,7 +1016,8 @@ def scan_trajectory(
                 criterion,
                 device,
                 args,
-                continuation_budget_for(checkpoint_t, ref_t, args),
+                continuation_budget_for(checkpoint_t, ref_t, args, max_continuation_steps),
+                continuation_lr,
                 cache_file,
                 metadata,
             )
@@ -965,10 +1059,13 @@ def scan_trajectory(
         "basin_mode": args.basin_mode,
         "pred_threshold": args.pred_threshold,
         "jaccard_threshold": args.jaccard_threshold,
-        "continuation_lr": args.continuation_lr,
+        "continuation_lr": continuation_lr,
+        "continuation_lr_spec": str(args.continuation_lr),
         "loss_type": args.loss_type,
         "continuation_budget_mode": args.continuation_budget_mode,
-        "max_continuation_steps": args.max_continuation_steps,
+        "max_continuation_steps": max_continuation_steps,
+        "max_continuation_steps_spec": args.max_continuation_steps,
+        "max_continuation_eta_product": args.max_continuation_eta_product,
         "num_endpoints_computed": num_computed,
         "num_cached_endpoints": cached_before,
         "computed_continuation_steps": computed_steps,

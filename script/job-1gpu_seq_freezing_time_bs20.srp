@@ -18,21 +18,17 @@ set -euo pipefail
 CODE_DIR=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/Numerical_experiments
 DATA_ROOT=${CODE_DIR}/data
 CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_v2
-OUTPUT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_all_ce
+OUTPUT_ROOT=${OUTPUT_ROOT:-/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_training_lr_r1-5_ce}
+PILOT_CACHE_ROOT=${PILOT_CACHE_ROOT:-/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_training_lr_pilot_r1_ce}
 
 BS=20
-LR_LIST=(0.001 0.002 0.005 0.01 0.02 0.05 0.1)
+LR_LIST=(0.1 0.05 0.02 0.01 0.005 0.002)
 SUBDIR_TEMPLATE='bs{batch_size}_lr{learning_rate:g}_repeat{repeat}'
 LOSS_TYPE=ce
-RUN_PRED099=0
+RUN_PRED099=1
 
-if [ "${BS}" = "1000" ]; then
-  REPEAT_START=1
-  REPEAT_END=1
-else
-  REPEAT_START=1
-  REPEAT_END=20
-fi
+REPEAT_START=1
+REPEAT_END=5
 
 mkdir -p "${OUTPUT_ROOT}"
 cd "${CODE_DIR}"
@@ -89,8 +85,15 @@ echo "Output root: ${OUTPUT_ROOT}"
 
 for LR in "${LR_LIST[@]}"; do
   CONDITION_TAG=bs${BS}_lr${LR}
-  JACCARD_OUT=${OUTPUT_ROOT}/jaccard095/${CONDITION_TAG}
+  JACCARD_OUT=${OUTPUT_ROOT}/jaccard09/${CONDITION_TAG}
+  JACCARD095_OUT=${OUTPUT_ROOT}/jaccard095/${CONDITION_TAG}
   PRED_OUT=${OUTPUT_ROOT}/pred099/${CONDITION_TAG}
+
+  EVAL_EVERY=$(python -c "import math; lr=float('${LR}'); print(max(10, int(math.ceil(1.0 / lr))))")
+  MIN_CONTINUATION_STEPS=$(python -c "import math; lr=float('${LR}'); print(max(100, int(math.ceil(5.0 / lr))))")
+  COARSE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(20 if lr <= 0.005 else 10)")
+  FINE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(5 if lr <= 0.005 else 1)")
+  echo "Condition ${CONDITION_TAG}: repeats=${REPEAT_START}..${REPEAT_END}, eval_every=${EVAL_EVERY}, min_continuation_steps=${MIN_CONTINUATION_STEPS}, coarse_stride=${COARSE_CHECKPOINT_STRIDE}, fine_stride=${FINE_CHECKPOINT_STRIDE}"
 
   COMMON_ARGS="\
     --data_dir ${DATA_ROOT} \
@@ -101,30 +104,39 @@ for LR in "${LR_LIST[@]}"; do
     --repeat_start ${REPEAT_START} \
     --repeat_end ${REPEAT_END} \
     --reference_iteration auto \
-    --continuation_budget_mode fixed \
-    --continuation_lr 0.05 \
+    --continuation_budget_mode to_reference \
+    --continuation_lr training \
     --loss_type ${LOSS_TYPE} \
-    --coarse_checkpoint_stride 10 \
-    --fine_checkpoint_stride 1 \
+    --coarse_checkpoint_stride ${COARSE_CHECKPOINT_STRIDE} \
+    --fine_checkpoint_stride ${FINE_CHECKPOINT_STRIDE} \
     --early_stop_loss 0.005 \
     --early_stop_acc 1.0 \
     --early_stop_patience 3 \
-    --min_continuation_steps 100 \
-    --eval_every 20 \
+    --min_continuation_steps ${MIN_CONTINUATION_STEPS} \
+    --eval_every ${EVAL_EVERY} \
     --max_continuation_steps 2000"
 
   mkdir -p "${JACCARD_OUT}" "${PRED_OUT}"
+  if [ ! -d "${JACCARD_OUT}/endpoints" ]; then
+    if [ -d "${PILOT_CACHE_ROOT}/jaccard09/${CONDITION_TAG}/endpoints" ]; then
+      cp -r "${PILOT_CACHE_ROOT}/jaccard09/${CONDITION_TAG}/endpoints" "${JACCARD_OUT}/endpoints"
+    elif [ -d "${JACCARD095_OUT}/endpoints" ]; then
+      cp -r "${JACCARD095_OUT}/endpoints" "${JACCARD_OUT}/endpoints"
+    fi
+  fi
 
-  run_timed "jaccard095_${CONDITION_TAG}" python "${CODE_DIR}/compute_freezing_time.py" \
+  run_timed "jaccard09_${CONDITION_TAG}" python "${CODE_DIR}/compute_freezing_time.py" \
     ${COMMON_ARGS} \
     --output_dir "${JACCARD_OUT}" \
     --basin_mode jaccard \
-    --jaccard_threshold 0.95
+    --jaccard_threshold 0.9
   require_summary_ok "${JACCARD_OUT}/freezing_time_summary.csv"
 
   if [ "${RUN_PRED099}" = "1" ]; then
-    if [ ! -d "${PRED_OUT}/endpoints" ]; then
-      cp -r "${JACCARD_OUT}/endpoints" "${PRED_OUT}/endpoints"
+    mkdir -p "${PRED_OUT}/endpoints"
+    cp -n "${JACCARD_OUT}/endpoints/"*.npz "${PRED_OUT}/endpoints/" 2>/dev/null || true
+    if [ -d "${PILOT_CACHE_ROOT}/pred099/${CONDITION_TAG}/endpoints" ]; then
+      cp "${PILOT_CACHE_ROOT}/pred099/${CONDITION_TAG}/endpoints/"*.npz "${PRED_OUT}/endpoints/" 2>/dev/null || true
     fi
     run_timed "pred099_${CONDITION_TAG}" python "${CODE_DIR}/compute_freezing_time.py" \
       ${COMMON_ARGS} \

@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -J ft_bs50
+#SBATCH -J ft_bs500_r6_20
 #SBATCH -p gpu_4l
 #SBATCH -N 1
-#SBATCH -o ../err_out/ft_seq_bs50_%j.out
-#SBATCH -e ../err_out/ft_seq_bs50_%j.err
+#SBATCH -o ../err_out/ft_seq_bs500_r6-20_%j.out
+#SBATCH -e ../err_out/ft_seq_bs500_r6-20_%j.err
 #SBATCH --no-requeue
 #SBATCH -A tangc_g1
 #SBATCH --qos=tangcg4c
@@ -21,14 +21,17 @@ CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_v2
 OUTPUT_ROOT=${OUTPUT_ROOT:-/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_training_lr_r1-5_ce}
 PILOT_CACHE_ROOT=${PILOT_CACHE_ROOT:-/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_training_lr_pilot_r1_ce}
 
-BS=50
-LR_LIST=(0.1 0.05 0.02 0.01 0.005 0.002)
+BS=500
+LR_LIST=(0.1 0.05 0.02 0.01 0.005)
+if [ "${INCLUDE_LR_002:-0}" = "1" ]; then
+  LR_LIST+=(0.002)
+fi
 SUBDIR_TEMPLATE='bs{batch_size}_lr{learning_rate:g}_repeat{repeat}'
 LOSS_TYPE=ce
-RUN_PRED099=1
+RUN_PRED099=${RUN_PRED099:-0}
 
-REPEAT_START=1
-REPEAT_END=5
+REPEAT_START=6
+REPEAT_END=20
 
 mkdir -p "${OUTPUT_ROOT}"
 cd "${CODE_DIR}"
@@ -91,8 +94,8 @@ for LR in "${LR_LIST[@]}"; do
 
   EVAL_EVERY=$(python -c "import math; lr=float('${LR}'); print(max(10, int(math.ceil(1.0 / lr))))")
   MIN_CONTINUATION_STEPS=$(python -c "import math; lr=float('${LR}'); print(max(100, int(math.ceil(5.0 / lr))))")
-  COARSE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(20 if lr <= 0.005 else 10)")
-  FINE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(5 if lr <= 0.005 else 1)")
+  COARSE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(50 if lr <= 0.002 else (20 if lr <= 0.005 else 10))")
+  FINE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(10 if lr <= 0.002 else (5 if lr <= 0.005 else 1))")
   echo "Condition ${CONDITION_TAG}: repeats=${REPEAT_START}..${REPEAT_END}, eval_every=${EVAL_EVERY}, min_continuation_steps=${MIN_CONTINUATION_STEPS}, coarse_stride=${COARSE_CHECKPOINT_STRIDE}, fine_stride=${FINE_CHECKPOINT_STRIDE}"
 
   COMMON_ARGS="\
@@ -145,7 +148,7 @@ for LR in "${LR_LIST[@]}"; do
       --pred_threshold 0.99
     require_summary_ok "${PRED_OUT}/freezing_time_summary.csv"
   else
-    echo "Skipping pred099 for ${CONDITION_TAG}. Set RUN_PRED099=1 to enable this robustness check."
+    echo "Skipping pred099 for ${CONDITION_TAG}. Set RUN_PRED099=${RUN_PRED099:-0} to enable this robustness check."
   fi
 
 done

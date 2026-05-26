@@ -38,7 +38,7 @@ T = readtable(summary_csv);
 
 %% Convert table columns to heatmap matrices
 Freezing_time = make_matrix(T, 'mean_eta_tf', bs_display, lr_display);
-Solution_spread = make_matrix(T, 'log10_weight_var', bs_display, lr_display);
+Solution_spread = log10(make_matrix(T, 'rms_radius', bs_display, lr_display));
 Final_flatness = make_mean_hessian_flatness(data_root, out_dir, bs_display, lr_display, ...
     train_acc_threshold, n_repeats);
 Best_accuracy = make_matrix(T, 'max_test_acc', bs_display, lr_display);
@@ -55,9 +55,10 @@ plot_one_heatmap(Freezing_time, bs_display, lr_display, ...
     export_resolution, [0, 100], [0, 50, 100], false);
 
 plot_one_heatmap(Solution_spread, bs_display, lr_display, ...
-    '$log_{10}\langle d_\theta^2\rangle$', ...
+    '$r_\theta$', ...
     fullfile(out_dir, 'Fig2B_solution_spread.png'), ...
-    export_resolution, [-3, 1], [-3, -2, -1, 0], false);
+    export_resolution, log10([0.03, 3]), log10([0.03, 0.1, 0.3, 1, 3]), false, ...
+    {'0.03', '0.1', '0.3', '1', '3'});
 
 plot_one_heatmap(Final_flatness, bs_display, lr_display, ...
     '$\langle F\rangle$', ...
@@ -136,7 +137,11 @@ function M = make_mean_hessian_flatness(data_root, out_dir, bs_display, lr_displ
 end
 
 
-function plot_one_heatmap(Data, bs_display, lr_display, cbar_text, output_file, resolution, clim_values, cbar_ticks, show_values)
+function plot_one_heatmap(Data, bs_display, lr_display, cbar_text, output_file, resolution, clim_values, cbar_ticks, show_values, cbar_tick_labels)
+    if nargin < 10
+        cbar_tick_labels = [];
+    end
+
     fig = figure('unit', 'points', 'PaperUnits', 'points', 'position', [100 100 400 400]);
     imagesc(Data);
     set(gca, 'YDir', 'normal');
@@ -160,7 +165,7 @@ function plot_one_heatmap(Data, bs_display, lr_display, cbar_text, output_file, 
     cb.Label.Rotation = 0;
     cb.Label.Units = 'normalized';
     cb.Label.Position = [0.5, 1.1, 0];
-    set_colorbar_ticks(cb, cmin, cmax, cbar_ticks);
+    set_colorbar_ticks(cb, cmin, cmax, cbar_ticks, cbar_tick_labels);
 
     xlabel('Learning rate $\eta$', 'Interpreter', 'latex', 'FontSize', 18);
     ylabel('Batch size $B$', 'Interpreter', 'latex', 'FontSize', 18);
@@ -196,12 +201,16 @@ function plot_one_heatmap(Data, bs_display, lr_display, cbar_text, output_file, 
 end
 
 
-function set_colorbar_ticks(cb, cmin, cmax, tick_values)
+function set_colorbar_ticks(cb, cmin, cmax, tick_values, tick_labels)
     if isempty(tick_values)
         tick_values = linspace(cmin, cmax, 4);
     end
     cb.Ticks = tick_values;
-    cb.TickLabels = strip_trailing_zeros(tick_values);
+    if nargin >= 5 && ~isempty(tick_labels)
+        cb.TickLabels = tick_labels;
+    else
+        cb.TickLabels = strip_trailing_zeros(tick_values);
+    end
 end
 
 

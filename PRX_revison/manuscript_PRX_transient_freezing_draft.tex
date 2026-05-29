@@ -107,33 +107,16 @@ Before the freezing time $t_f$, the continuation endpoints become progressively 
 \end{figure*}
 
 
+
 \subsection{SGD noise delays freezing and broadens accessible solutions}
-The continuation-defined freezing time identifies when a trajectory becomes committed to an endpoint class. We next ask how this commitment time depends on SGD noise, and whether delaying commitment changes the ensemble of final solutions that training can reach. This comparison is not meant to prove that $t_f$ is the only variable controlling generalization. Instead, it establishes the empirical connection between stochastic mobility, basin commitment, and final-solution statistics that the theory below will explain.
+Having identified the freezing time along a single trajectory, we next examined how it depends on the strength of SGD noise. In mini-batch SGD, stochasticity comes from finite-batch sampling, with an effective strength controlled by the learning rate $\eta$ and batch size $B$: larger $\eta$ or smaller $B$ gives stronger noise, with an effective scale $\eta/B$ \cite{jastrzebskiThreeFactorsInfluencing2018}. To test this dependence, we trained networks over a broad grid of $(\eta,B)$, with learning rates from $\eta=0.002$ to $0.1$ and batch sizes from $B=10$ to $500$. For each setting, we performed 20 independent runs starting from the same initialization (see Supplemental Material for details). We measured the freezing time using matched continuation, where deterministic continuations used the same learning rate as the corresponding SGD trajectory. Across stochastic settings with $B<1000$, the normalized freezing time $\eta \langle t_f \rangle_n$ increases with the effective noise scale $\eta/B$ [Fig.~\ref{fig:freezing_control}(a)], where $\langle\cdot\rangle_n$ denotes an average over independent repeats and $\eta$ rescales iteration number to optimization time. Thus, stronger SGD noise delays freezing and extends the transient period during which the trajectory can still move between competing valleys.
 
-All measurements in this section use the same controlled training setup. We trained a fully connected ReLU network on a fixed 1,000-sample subset of MNIST, with 100 images per class, and evaluated on a fixed 200-sample test set. The architecture was $784\to50\to50\to10$, and the parameters were optimized by standard SGD without momentum or weight decay to minimize the cross-entropy loss. To isolate the effect of mini-batch stochasticity, all runs started from the same Kaiming-initialized weights with zero biases. We scanned learning rates $\eta\in\{0.001,0.002,0.005,0.01,0.02,0.05,0.1\}$ and batch sizes $B\in\{10,20,50,100,200,500,1000\}$, where $B=1000$ corresponds to full-batch GD, and performed 20 independent repeats for each condition. The total number of iterations was scaled as $T=100/\eta$, with trajectories recorded at 101 evenly spaced checkpoints.
-
-Within this hyperparameter grid, increasing the learning rate $\eta$ or decreasing the batch size $B$ increases the effective stochasticity of SGD, with nominal noise scale proportional to $\eta/B$. We measured $t_f$ with a matched-continuation protocol: each hyperparameter condition was continued using its own training learning rate, so the readout tests commitment under the dynamics appropriate to that condition. With this definition, the deterministic large-batch baseline has little mini-batch-induced redirection, and the main comparison focuses on stochastic settings with $B<1000$. Across these settings, the rescaled freezing coordinate $\eta t_f$ increases systematically toward larger $\eta/B$ [Fig.~\ref{fig:freezing_control}(a)]. Thus, stronger SGD noise keeps the trajectory mobile among competing endpoint classes for a longer portion of training before the continuation endpoint becomes stable.
-
-Connecting this commitment time to final solution quality requires some care. With cross-entropy loss, training can continue to change margins, local sharpness, and test loss after classification accuracy has saturated and after the endpoint class has already been selected. We therefore do not treat the final network as an instantaneous readout of the freezing event. Instead, we use converged endpoints to ask which region of solution space becomes accessible when the mobile phase lasts longer. For each hyperparameter condition, we measured the RMS radius of the converged endpoint ensemble,
-\begin{equation}
-r_\theta \equiv
-\left[
-\left\langle
-\left\|
-\hat{\bm{\theta}}^{(n)}
--
-\langle\hat{\bm{\theta}}^{(n)}\rangle_n
-\right\|^2
-\right\rangle_n
-\right]^{1/2},
+This delayed freezing also affects the set of final solutions reached across repeats. For each hyperparameter setting, we measured the root-mean-square (RMS) radius of the converged endpoints,
+\begin{equation} r_\theta \equiv \left[ \left\langle \left\| \hat{\bm{\theta}}^{(n)} - \langle\hat{\bm{\theta}}^{(n)}\rangle_n \right\|^2 \right\rangle_n \right]^{1/2}, 
 \end{equation}
-where $\hat{\bm{\theta}}^{(n)}$ is the final converged endpoint of repeat $n$, and $\langle\cdot\rangle_n$ denotes an average over repeats. We measured this endpoint radius together with the final flatness and the upper envelope of final test accuracy.
+where $\hat{\bm{\theta}}^{(n)}$ denotes the final endpoint of repeat $n$. Stronger-noise settings produce larger $r_\theta$ [Fig.~\ref{fig:freezing_control}(b)], showing that delayed freezing is associated with a broader set of accessible endpoints. The same ordering is observed for the mean final flatness [Fig.~\ref{fig:freezing_control}(c)], suggesting that this broader set is biased toward flatter regions. Although test accuracy varies only weakly in this small task, the accessibility towards broader and flatter endpoints increases the chance of finding a more generalizable solution, as showin by the improved best-of-repeats test accuracy in Fig.~\ref{fig:freezing_control}(d).
 
-These final-solution observables follow the same noise ordering as the freezing coordinate. High-noise conditions have larger $r_\theta$ [Fig.~\ref{fig:freezing_control}(b)], indicating that delayed freezing is associated with a broader set of converged endpoints across independent repeats. The mean final flatness increases with the same ordering [Fig.~\ref{fig:freezing_control}(c)]. By contrast, mean test accuracy is strongly compressed on this small task, so we report the best-of-repeats test accuracy only as an upper-envelope statistic [Fig.~\ref{fig:freezing_control}(d)]. This panel should be interpreted conservatively: it shows that noisier, later-freezing conditions can access high-performing endpoints, not that noise monotonically improves typical accuracy.
-
-These observations refine the statement that more noise produces more exploration. The relevant exploration is the transient mobility that persists before the continuation endpoint becomes stable. After this arrest, later optimization mainly refines the already selected endpoint class. We therefore use $t_f$ as a dynamical readout of the noise-controlled exploratory window, rather than as a post hoc label assigned after convergence.
-
-The resulting picture is that final-basin statistics are shaped by two coupled ingredients: the evolving landscape encountered during training and the time at which inter-valley mobility is lost. Increasing SGD noise does not simply perturb the final basin after it has been chosen. Rather, it delays freezing, leaving the trajectory mobile until barriers, basin volumes, and flatness contrasts have evolved further. This extended pre-freezing window gives SGD a greater chance to reach flatter endpoint classes before the basin choice is locked in. In this sense, the transient noisy phase is not wasted wandering; it determines which part of the evolving landscape can still influence the final solution ensemble. The minimal model below is designed to separate the fixed-slice valley bias from the noise-dependent stopping time at which that bias is inherited.
+Together, these results clarify the role of SGD noise. Stronger noise does not merely perturb the trajectory after a valley has been selected; instead, it delays the freezing event that selects the valley. By extending the pre-freezing period, SGD can continue hopping between competing valleys until flatter regions become accessible. Thus, transient valley freezing provides a mechanism by which SGD is driven toward flatter and potentially better-generalizing minima.
 
 \begin{figure}[!tbp]
 \centering
@@ -142,40 +125,75 @@ The resulting picture is that final-basin statistics are shaped by two coupled i
 \label{fig:freezing_control}
 \end{figure}
 
-\subsection{A minimal theory of transient freezing}
-To isolate the mechanism, we constructed the smallest model that contains the ingredients observed in training. The coordinate $y$ represents the downhill training direction, while the coordinate $x$ distinguishes two competing valleys. The valley at $x>0$ is flatter than the valley at $x<0$, but the two valleys have equal depth relative to the separating barrier, so any selection effect is geometric rather than imposed by an energy difference. A convenient realization is
+\subsection{A minimal two-valley model of transient freezing}
+As described above, in real training we empirically observe the following features: (1) the loss landscape splits into multiple solution valleys originating from a common starting point, each characterized by a different degree of flatness; (2) as training proceeds and the loss decreases, the valleys become increasingly flatter, reflecting a systematic growth of flatness; (3) due to stochastic mini-batch sampling, the SGD trajectory may transiently jump from shaper valleys during the early phase of optimization; and (4) increasing the level of SGD noise systematically delays the valley-jumping freezing time, thereby biasing the dynamics toward convergence into the flatter valley. This physical picture is schematically illustrated in Fig.~\ref{fig:toy_model}\textit{A}, which bears a strong resemblance to the Waddington epigenetic landscape where cells traverse a bifurcating potential surface to achieve stable developmental fates \cite{waddington1957strategy, kitanoTheoryBiologicalRobustness2007, wangQuantifyingWaddingtonLandscape2011, pujadasRegulatedNoiseEpigenetic2012,ferrellBistabilityBifurcationsWaddingtons2012}.
+
+To explain these phenomena within a minimal yet analytically tractable framework, we construct a two-dimensional loss landscape $\mathcal{L}(x, y)$ that takes the form of a bifurcating valley (Fig.~\ref{fig:toy_model}\textit{B}). Here, the variable $y$ represents the principal training direction along which the overall loss decreases, whereas $x$ denotes a symmetry-breaking parameter direction where the valley bifurcation emerges. The loss is defined piecewise as
 \begin{equation}
-    \mathcal{L}(x, y) = \mathcal{L}_0(y) +
+    \mathcal{L}(x, y) = \mathcal{L}_0(y)  +
     \begin{cases}
-       \dfrac{x\left[x - g_1(y)\right]}{f_1(y)}, & x \geq 0, \\
-       \dfrac{x\left[x + g_2(y)\right]}{f_2(y)}, & x < 0,
+       \dfrac{x(x - g_1(y))}{f_1(y)}, & x \geq 0, \\
+       \dfrac{x(x + g_2(y))}{f_2(y)}, & x < 0,
     \end{cases}
-    \label{eq:toy_loss}
+    \label{eq:loss_toy_model}
 \end{equation}
-where $g_{1,2}(y)$ set the valley positions and $f_{1,2}(y)$ are inverse curvatures. We denote $f_{\mathrm{flat}}(y)\equiv f_1(y)$ and $f_{\mathrm{sharp}}(y)\equiv f_2(y)$, with flatness contrast $\gamma \equiv f_{\mathrm{flat}}/f_{\mathrm{sharp}}>1$. As $y$ increases, the valleys separate, the barrier height $\Delta \mathcal{L}(y)$ grows, and the absolute flatness of the valleys changes. These are the empirical features needed for a freezing problem.
-
-The dynamics follow a discrete-time Langevin update,
+with several components controlling the landscape geometry. The functions $g_{1,2}(y)$ set the valley positions:
 \begin{equation}
-    \bm{\theta}_{t+1} = \bm{\theta}_t - \eta \left[\nabla \mathcal{L}(\bm{\theta}_t) + \bm{\xi}_t\right],
-    \qquad \bm{\theta} = (x,y),
-    \label{eq:toy_dynamics}
+    g_1(y) = \frac{2 x_1 y}{y + y_b}, \qquad 
+    g_2(y) = \frac{2 x_2 y}{y + y_b},
 \end{equation}
-with zero-mean noise whose covariance mimics the geometry-coupled structure of SGD,
+so that the valley minima $x_{1,2}^{\star}$ are located at $x_1^{\star} = g_1(y)/2$ and $x_2^{\star} = -g_2(y)/2$, asymptotically approaching $x_1$ and $-x_2$ as $y \to \infty$. The parameter $y_b$ sets the bifurcation scale, controlling how rapidly the valleys separate. The valley flatness (inverse curvatures) are determined by $f_{1,2}(y)$:
 \begin{equation}
-    \mathrm{Cov}(\bm{\xi}_t) = 2\sigma\,\mathbf{H}(\bm{\theta}_t).
-    \label{eq:toy_noise}
+    f_1(y) = f_0 \frac{x_1^2}{x_0^2} \frac{(y+y_f)^2}{(y+y_b)^2}, 
+    \qquad 
+    f_2(y) = f_0 \frac{x_2^2}{x_0^2} \frac{(y+y_f)^2}{(y+y_b)^2},
 \end{equation}
-Here $\mathbf{H}$ is the local Hessian in the stable valley region and $\sigma$ sets the mini-batch noise scale. The effective noise level is $\Delta_S\sim \eta\sigma$. Thus, $\Delta_S$ controls stochastic mobility, $\Delta \mathcal{L}(y)$ controls the barrier to valley exchange, and $\gamma$ controls the flatness asymmetry.
+where $f_0$ sets the overall flatness scale, $x_0$ is a normalization constant, and $y_f$ controls the rate at which both valleys flatten as $y$ increases. Note that while the absolute flatness evolves, their ratio remains constant. We define this flatness ratio as $\gamma \equiv f_1(y)/f_2(y) = (x_1/x_2)^2$. Since $x_1 > x_2$, we have $\gamma > 1$, indicating that the valley with $x>0$ is flatter.
 
-The model reproduces the empirical sequence. Early in training, barriers are small and trajectories hop repeatedly between the two valleys. As $y$ increases, escape rates decrease and hopping becomes rare. The basin is selected when the hopping time exceeds the drift time along $y$. Increasing $\Delta_S$ delays this crossing, keeps the system mobile for longer, and increases the probability that the final basin is the flatter valley.
+For simplicity, the landscape is constructed to disentangle the geometric effect of flatness from valley depth. The two minima, located at $x^{\star}_1(y)$ and $x^{\star}_2(y)$, are designed to have equal depths relative to the barrier at $x=0$. This common depth defines the barrier height $\Delta \mathcal{L}(y)$, which evolves with $y$ according to
+\begin{equation}
+\begin{split}
+    \Delta \mathcal{L}(y) 
+    &= \mathcal{L}(0, y) - \mathcal{L}(x_1^{\star}, y) 
+     = \mathcal{L}(0, y) - \mathcal{L}(x_2^{\star}, y)  \\
+    &= \frac{x_0^2}{f_0} \frac{y^2}{(y+y_f)^2}.
+\end{split}
+\end{equation}
+The barrier height increases with $y$ and saturates at $x_0^2/f_0$ as $y \to \infty$. Furthermore, we introduce a global drift term
+\begin{equation}
+    \mathcal{L}_0(y) = \mathcal{L}_d e^{-y / y_d} + \mathcal{L}_0^{\star},
+\end{equation}
+which adds a weak, decaying bias along the $y$-direction and captures the overall loss reduction typically induced by the cross-entropy function during training. Here, $\mathcal{L}_d$ controls the initial bias strength and $y_d$ sets its decay scale along $y$. A constant offset $\mathcal{L}_0^{\star} = x_0^2 / f_0$ is included to ensure that $\mathcal{L} \ge 0$ across the entire landscape.
 
-This model is not intended as a literal two-coordinate reduction of a neural network. Its role is to make the mechanism identifiable. Once competing valleys, geometry-coupled noise, and a growing barrier coexist, flat-minimum selection becomes a history-dependent consequence of nonequilibrium dynamics, rather than only a property of a fixed landscape.
+The learning dynamics are described by a discrete-time Langevin equation. At each iteration, the position $\bm{\theta}=(x,y)$ evolves as
+\begin{equation}
+    \bm{\theta}_{t+1} = \bm{\theta}_t - \eta \bigl( \nabla \mathcal{L}(\bm{\theta}_t) + \bm{\xi}_t \bigr),
+\label{eq:SGD_updating_rule}
+\end{equation}
+where $\eta$ is the learning rate. The noise term $\bm{\xi}_t$ is sampled from a zero-mean Gaussian distribution
+\begin{equation}
+    \bm{\xi}_t \sim \mathcal{N}\bigl(0, \mathbf{\Sigma}(\bm{\theta}_t)\bigr).
+\end{equation}
+In SGD, this gradient noise is empirically observed to be highly anisotropic and strongly correlated with the local geometry of the loss landscape~\cite{fengInverseVarianceFlatness2021,zhuAnisotropicNoiseStochastic2019,xieDiffusionTheoryDeep2021,liHessianBasedAnalysis2020,yangStochasticGradientDescent2023}. To capture this landscape-dependent noise, we model the noise covariance as proportional to the local Hessian $\mathbf{H}(\bm{\theta}_t)$:
+\begin{equation}
+    \mathbf{\Sigma}(\bm{\theta}_t) = 2\sigma \mathbf{H}(\bm{\theta}_t),
+\end{equation}
+where $\sigma$ sets the noise strength, inversely dependent on batch size $B$. Note that the qualitative behavior of our model is insensitive to the exact functional dependence between $\mathbf{\Sigma}$ and $\mathbf{H}$. Any monotonically increasing relationship (e.g., $\mathbf{\Sigma}\propto \mathbf{H}$ or $\mathbf{\Sigma}\propto \mathbf{H}^2$) yields the same behavior (see Sec.~II~B in Supplemental Material and Fig.~S6 for details).
 
-\begin{figure}[!tbp]
+
+Simulations of this model reproduce our key empirical findings. Starting from the two valleys with equal probabilities, we varied $\eta$ and $\sigma$ and measured the probability of converging to the flatter valley $P_{\mathrm{flat}}$ and the normalized mean freezing time $\eta \langle t_{\mathrm{freeze}} \rangle$, defined as the last valley-switching iteration (see Sec.~II~A in Supplemental Material for details). The results reveal a sharp transition: larger $\eta$ or $\sigma$ dramatically increase the likelihood of convergence to the flatter valley (Fig.~\ref{fig:toy_model}\textit{C}), consistent with our empirical observation that stronger SGD noise biases solutions toward flatter minima (compare with Fig.~\ref{fig:solution_properties}\textit{F}). Moreover, the model reproduces the link between noise and transient exploration. The normalized freezing time increases systematically with both $\eta$ and $\sigma$ (Fig.~\ref{fig:toy_model}\textit{D}). This parallels our neural network experiments (compare with Fig.~\ref{fig:early_dynamics}\textit{C}). 
+
+Despite its simplicity, the two-valley model captures the essential features of the learning dynamics: the anisotropic landscape-dependent noise not only enables escape from sharper minima but also biases convergence toward flatter regions by extending the early transient exploration phase, thereby allowing the dynamics to settle preferentially into flatter solution valleys. Next, we analytically elucidate the underlying mechanisms for valley selection during the early exploratory learning phase in the two-valley model. 
+
+\begin{figure}[tbhp]
 \centering
-\includegraphics[width=\linewidth]{Figures_reference_mockups/FigRef4_minimal_model_mockup.png}
-\caption{Minimal two-valley model for transient freezing. (a) The coordinate $y$ describes downhill training, while $x$ distinguishes a flat valley from a sharp valley. The valleys separate and the barrier grows as $y$ increases. (b) Geometry-coupled noise is stronger along high-curvature directions, mimicking the anisotropic structure of SGD noise. (c) Simulated trajectories hop between valleys early in training and freeze into one valley later. (d) Stronger effective noise $\Delta_S$ delays freezing and increases the final probability of selecting the flat valley.}
-\label{fig:minimal_model}
+\includegraphics[width=\linewidth]{Figures_revision/Fig3_toy_model.pdf}
+\caption{A minimal two-valley model with anisotropic, landscape-dependent noise recapitulates the empirically observed training dynamics. 
+(\textit{A}) Conceptual schematic of key characteristics of empirical SGD dynamics. 
+(\textit{B}) The constructed 2D loss landscape $\mathcal{L}(x, y)$ with bifurcating sharper and flatter valleys of equal depth, as defined in Eq.~\ref{eq:loss_toy_model}. 
+(\textit{C} and \textit{D}) Heatmaps showing the probability of converging to the flatter valley $P_{\mathrm{flat}}$ (\textit{C}) and the normalized mean freezing time $\eta \langle t_{\mathrm{freeze}} \rangle$ (\textit{D}), as functions of learning rate $\eta$ and noise strength $\sigma$. Statistics were collected from 2000 simulations, half initialized on the sharper side and half on the flatter side for each hyperparameter setting. Full simulation procedures and landscape parameters are provided in the Supplemental Material, Sec.~II~A.
+}
+\label{fig:toy_model}
 \end{figure}
 
 \subsection{Static bias is real but insufficient}

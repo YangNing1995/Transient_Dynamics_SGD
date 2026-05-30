@@ -208,9 +208,9 @@ Statistics were collected from 2000 simulations, half initialized on the sharper
 \label{fig:toy_model}
 \end{figure}
 
-% \subsection{Static bias is real but insufficient}
 
-\subsection{SGD favors flatter minima in the quasi–steady-state regime}
+% \subsection{SGD favors flatter minima in the quasi–steady-state regime}
+\subsection{Anisotropic noise biases the effective landscape toward flatter valleys}
 
 In the limit of small learning rates, the discrete SGD updates in Eq.~\ref{eq:SGD_updating_rule} can be approximated by a continuous-time stochastic process. In this regime, the learning dynamics are governed by a continuous-time Langevin equation, and the probability density $P(x,y,t)$ for the system to occupy position $(x,y)$ at time $t$ evolves according to a corresponding Fokker--Planck equation:
 \begin{equation}
@@ -254,15 +254,15 @@ This effective loss can be decomposed into the original loss $\mathcal{L}(x,y)$ 
     \big[\mathcal{L}(x,y)-\mathcal{L}_0(y)\big].
 \end{split}
 \end{equation}
-Since the flatness ratio satisfies $\gamma > 1$, the SGD correction term lowers the effective loss near the flat minimum while raising it near the sharp one, as shown in Fig.~\ref{fig:analytical_results}\textit{A}. 
+Since the flatness ratio satisfies $\gamma > 1$, the SGD correction term lowers the effective loss near the flat minimum while raising it near the sharp one, as shown in Fig.~\ref{fig:analytical_results}(a). 
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.9\textwidth]{Figures_revision/Fig4_analytical_model.pdf}
 \caption{Analytical theory reveals that a transient freezing mechanism explains the preference for flatter valleys.
-(\textit{A}) Anisotropic SGD noise reshapes the original loss $\mathcal{L}(x,y)$ (blue solid line) into an effective loss $\mathcal{L}_{\mathrm{eff}}(x,y)$ (red solid line) where adding a correction term $\mathcal{L}_{\mathrm{SGD}}(x,y)$ (red dashed line). 
-(\textit{B}) Comparison of the simulated flat-valley probability $P_{\mathrm{flat}}$ (solid lines) with theoretical nonequilibrium steady-state (NESS) predictions (dotted lines, Eq.~\ref{eq:ss_SGD}) for different noise levels $\Delta_S$. The equilibrium steady-state (ESS) probability $P_{\mathrm{flat}}^{\mathrm{eq}}= (1+\gamma^{-1})^{-1}$ is marked by black dotted line.
-(\textit{C}) The final flat-valley probability predicted by the transient theory ($P_{\mathrm{flat}}^{\mathrm{tr,SGD}}$, Eq.~\ref{eq:tr_SGD}) with effective noise strength $\Delta_S$ and flatness ratio $\gamma=f_1/f_2$.}
+(a) Anisotropic SGD noise reshapes the original loss $\mathcal{L}(x,y)$ (blue solid line) into an effective loss $\mathcal{L}_{\mathrm{eff}}(x,y)$ (red solid line) by adding a correction term $\mathcal{L}_{\mathrm{SGD}}(x,y)$ (red dashed line). 
+(b) Comparison of the simulated flat-valley probability $P_{\mathrm{flat}}$ (solid lines) with theoretical nonequilibrium steady-state (NESS) predictions (dotted lines, Eq.~\ref{eq:ss_SGD}) for different noise levels $\Delta_S$. The equilibrium steady-state (ESS) probability $P_{\mathrm{flat}}^{\mathrm{eq}}= (1+\gamma^{-1})^{-1}$ is marked by black dotted line.
+(c) The final flat-valley probability predicted by the transient theory ($P_{\mathrm{flat}}^{\mathrm{tr,SGD}}$, Eq.~\ref{eq:tr_SGD}) with effective noise strength $\Delta_S$ and flatness ratio $\gamma=f_1/f_2$.}
 \label{fig:analytical_results}
 \end{figure*}
 
@@ -291,13 +291,14 @@ P_{\mathrm{flat}}^{\mathrm{ss,SGD}}>P_{\mathrm{flat}}^{\mathrm{eq}},
 \end{equation}
 confirming that anisotropic SGD noise enhances the likelihood of ending up in the flatter valley, consistent with previous theoretical work \cite{xieDiffusionTheoryDeep2021} (see Appendix~\ref{sec:appendix3} for details).
 
-\subsection{Stronger SGD noise delays freezing and enhances search for flatter valleys}
-In the quasi-steady-state limit with a fixed $y$, Eq.~\ref{eq:ss_SGD} predicts that increasing the global noise strength $\Delta_S$ weakens the preference for the flatter valley, seemingly contradicting both our empirical results (Fig.~\ref{fig:solution_properties}\textit{F}) and simulations (Fig.~\ref{fig:toy_model}\textit{C}). This apparent inconsistency arises because, at fixed $y$, the effective loss (Eq.~\ref{eq:effective_loss_SGD}) is independent of $\Delta_S$; increasing the effective temperature therefore merely reduces valley selectivity. Resolving this paradox reveals a central insight of our study: final valley selection is not governed by a static equilibrium alone, but is critically shaped by the transient dynamics of $y$. In particular, the value of $y$ at which Eq.~\ref{eq:ss_SGD} ultimately applies depends on the noise strength $\Delta_S$.
+% \subsection{Stronger SGD noise delays freezing and enhances search for flatter valleys}
+\subsection{Noise-delayed freezing governs final valley selection}
+In the quasi-steady-state limit with a fixed $y$, Eq.~\ref{eq:ss_SGD} predicts that increasing the global noise strength $\Delta_S$ weakens the preference for the flatter valley, seemingly contradicting both our empirical results [Fig.~\ref{fig:freezing_control}(c)] and simulations [Fig.~\ref{fig:toy_model}(d)]. This apparent inconsistency arises because, at fixed $y$, the effective loss (Eq.~\ref{eq:effective_loss_SGD}) is independent of $\Delta_S$; increasing the effective temperature therefore merely reduces valley selectivity. Resolving this paradox reveals a central insight of our study: final valley selection is not governed by a static equilibrium alone, but is critically shaped by the transient dynamics of $y$. In particular, the value of $y$ at which Eq.~\ref{eq:ss_SGD} ultimately applies depends on the noise strength $\Delta_S$.
 
 To see this, consider the transient valley-hopping dynamics, which is controlled by the inter-valley escape time $
 \tau_{\mathrm{escape}} \sim (k_{\mathrm{ss}}^{+}+k_{\mathrm{ss}}^{-})^{-1}.
 $
-Early in learning, when the barrier between valleys is low, \(\tau_{\mathrm{escape}} \ll \tau_y\). In this regime, for small \(y\), the distribution rapidly equilibrates via frequent inter-valley hopping, yielding the steady-state probability given by Eq.~\ref{eq:ss_SGD}. As \(y\) increases, however, both the valley flatness \(f_{1(2)}(y)\) and the barrier height \(\Delta\mathcal{L}(y)\) grow, progressively suppressing escape. Eventually, the system reaches a ``freezing point'' \(y_{\mathrm{freeze}}\) at which inter-valley transitions effectively cease (Fig.~\ref{fig:analytical_results}\textit{B}). The final valley occupation is therefore set by the quasi-steady-state distribution that becomes frozen at this point:
+Early in learning, when the barrier between valleys is low, \(\tau_{\mathrm{escape}} \ll \tau_y\). In this regime, for small \(y\), the distribution rapidly equilibrates via frequent inter-valley hopping, yielding the steady-state probability given by Eq.~\ref{eq:ss_SGD}. As \(y\) increases, however, both the valley flatness \(f_{1(2)}(y)\) and the barrier height \(\Delta\mathcal{L}(y)\) grow, progressively suppressing escape. Eventually, the system reaches a ``freezing point'' \(y_{\mathrm{freeze}}\) at which inter-valley transitions effectively cease [Fig.~\ref{fig:analytical_results}(b)]. The final valley occupation is therefore set by the quasi-steady-state distribution that becomes frozen at this point:
 \begin{equation}
 P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx 
 \left[1+\gamma^{-\frac{1}{2}} 
@@ -306,19 +307,19 @@ P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx
 \label{eq:tr_SGD_original}
 \end{equation}
 
-One of our key findings is that the freezing point $y_\mathrm{freeze}$ increases with the noise level $\Delta_S$. Intuitively, higher noise keeps the system ``hotter'' for longer, enabling continued inter-valley transitions and thus delaying the effective freezing point (Fig.~\ref{fig:analytical_results}\textit{B}). Quantitatively, $y_\mathrm{freeze}$ can be determined by requiring the escape rate from the sharper valley to become negligible compared to the evolution rate of the steady-state distribution, which leads to: 
+One of our key findings is that the freezing point $y_\mathrm{freeze}$ increases with the noise level $\Delta_S$. Intuitively, higher noise keeps the system ``hotter'' for longer, enabling continued inter-valley transitions and thus delaying the effective freezing point [Fig.~\ref{fig:analytical_results}(b)]. Quantitatively, $y_\mathrm{freeze}$ can be determined by requiring the escape rate from the sharper valley to become negligible compared to the evolution rate of the steady-state distribution, which leads to: 
 \begin{equation}
 y_\mathrm{freeze} \approx y_b \cdot \frac{\sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}}{x_2 - \sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}},
 \label{eq:y_freeze}
 \end{equation}
-where $\varepsilon$ is a small quantity and $\Phi$ is a constant that absorbs other model parameters (see Appendix~\ref{sec:appendix4} for detailed derivation). The dependence of $y_\mathrm{freeze}$ on $\Delta_S$ given in Eq.~\ref{eq:y_freeze} explains the increased mean freezing time $\eta \langle t_{\mathrm{freeze}} \rangle$ with noise strength observed in both numerical simulations (Fig.~\ref{fig:toy_model}\textit{D}) and empirical deep network experiments (Fig.~\ref{fig:early_dynamics}\textit{C}). Plugging in the expression of $y_\mathrm{freeze}$ for $P_{\mathrm{flat}}^{\mathrm{tr,SGD}}$ (Eq.~\ref{eq:tr_SGD_original}), we have:
+where $\varepsilon$ is a small quantity and $\Phi$ is a constant that absorbs other model parameters (see Appendix~\ref{sec:appendix4} for detailed derivation). The dependence of $y_\mathrm{freeze}$ on $\Delta_S$ given in Eq.~\ref{eq:y_freeze} explains the increased mean freezing time $\eta \langle t_f \rangle$ with noise strength observed in both numerical simulations [Fig.~\ref{fig:toy_model}(c)] and empirical deep network experiments [Fig.~\ref{fig:freezing_control}(a)]. Plugging in the expression of $y_\mathrm{freeze}$ for $P_{\mathrm{flat}}^{\mathrm{tr,SGD}}$ (Eq.~\ref{eq:tr_SGD_original}), we have:
 \begin{equation}
 P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx \left[ 1 + \gamma^{-\frac{1}{2}} \left( \frac{\sqrt{\Delta_S}}{\varepsilon \Phi} \right)^{1-\gamma} \right]^{-1},
 \label{eq:tr_SGD}
 \end{equation}
 which clearly shows that the probability in the flat valley increases with noise strength.
 
-Overall, while stronger noise decreases the steady-state preference for the flatter valley at a fixed $y$ by reducing the ratio $k_\mathrm{ss}^{+}/k_\mathrm{ss}^{-}$, this static effect is dominated by a dynamic freezing mechanism. Increased noise delays the onset of freezing, allowing the system to explore the landscape for longer and ultimately leading to a greater probability of settling in the flatter valley at higher noise levels. This bias is further enhanced by a larger flatness contrast ($\gamma=f_1/f_2>1$), as shown in Fig.~\ref{fig:analytical_results}\textit{C}. Together, these results provide a complete theoretical explanation for the observed positive correlation between noise strength and flat-valley selection, thereby resolving the apparent inconsistency arising from the steady-state analysis alone.
+Overall, while stronger noise decreases the steady-state preference for the flatter valley at a fixed $y$ by reducing the ratio $k_\mathrm{ss}^{+}/k_\mathrm{ss}^{-}$, this static effect is dominated by a dynamic freezing mechanism. Increased noise delays the onset of freezing, allowing the system to explore the landscape for longer and ultimately leading to a greater probability of settling in the flatter valley at higher noise levels. This bias is further enhanced by a larger flatness contrast ($\gamma=f_1/f_2>1$), as shown in Fig.~\ref{fig:analytical_results}(c). Together, these results provide a complete theoretical explanation for the observed positive correlation between noise strength and flat-valley selection, thereby resolving the apparent inconsistency arising from the steady-state analysis alone.
 
 
 

@@ -63,7 +63,6 @@ Our study provides a clear physical picture of transient learning dynamics. Anis
 \section{Results}
 \subsection{Transient valley hopping drives convergence toward flatter minima}
 
-
 To directly visualize how SGD transitions between valleys during training, we designed a continuation training experiment. A network was first trained with SGD to generate a reference trajectory (Fig.~\ref{fig:phenomenology}(a); reference setting $B = 50$, $\eta = 0.05$). At selected checkpoint times $t_c$ along this trajectory, training was branched and resumed using deterministic full-batch gradient descent (GD). Because full-batch GD removes mini-batch stochasticity, each continuation rapidly descends into the local valley determined by its starting point, without further inter-valley exploration. The continuation endpoint therefore identifies the valley occupied by the SGD trajectory at time $t_c$ (Fig.~\ref{fig:phenomenology}(a); see Supplemental Material for details). 
 
 

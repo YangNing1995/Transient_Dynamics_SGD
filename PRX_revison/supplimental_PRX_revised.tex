@@ -20,7 +20,7 @@
 %% =========================================================
 % It's common to repeat the title with "Supplemental Material for"
 
-\title{Supplemental Material:\\Transient Learning Dynamics Drive Escape from Sharp Valleys in Stochastic Gradient Descent}
+\title{Supplemental Material:\\Transient Freezing Governs Flat-Minimum Selection in Stochastic Gradient Descent}
 
 \author{Ning Yang}
 \thanks{These authors contributed equally to this work.}
@@ -73,16 +73,25 @@ To isolate the stochasticity introduced by batch sampling, we strictly enforced 
 
 System trajectories were recorded at 101 evenly spaced time points $t \in [0, T]$. To analyze the landscape geometry efficiently, we tracked the specific weight matrix connecting the two hidden layers ($W^{(2)}$), treating it as a flattened parameter vector of dimension $d=2,500$. We computed the Hessian matrix $\mathbf{H}$ of the loss function restricted to this subspace at each checkpoint. Concurrently, we monitored functional performance (loss and accuracy) and tracked the indices of misclassified test samples to characterize sample-wise learning dynamics throughout the optimization process.
 
-\subsection{Hessian spectrum analysis}
+\subsection{Multi-valley landscape structure and Hessian spectrum}
 
-To investigate the local geometry of the solutions found by SGD, we analyzed the curvature of the loss landscape at the optimization endpoints. As illustrated in Fig.~\ref{fig:hessian}(a), the spectrum exhibits a rapid decay regardless of the batch size used during training. The vast majority of dimensions represent ``soft modes'' (near-zero curvature), implying that the solution lies on a manifold that is locally flat in most directions. To quantify this anisotropy, we calculated the contribution of the top-10 eigenvalues to the total curvature (trace of $\mathbf{H}$) for all converged realizations. The selection of the top $k=10$ modes is motivated by prior empirical analyses \cite{sagunEmpiricalAnalysisHessian2018a}, which suggest that the Hessian spectrum of over-parameterized classification networks typically separates into a bulk of near-zero eigenvalues and a small set of large outliers roughly corresponding to the number of classes ($C=10$ for MNIST). Fig.~\ref{fig:hessian}(b) demonstrates that for most solutions, these top 10 dimensions alone account for over 80\% of the total curvature, confirming that the optimization effectively confines the system to a low-dimensional active subspace governed by these principal directions.
+Independent SGD runs initialized from the same point converge to multiple distinct low-loss endpoints that form separated clusters in parameter space. As shown in Fig.~\ref{fig:landscape_hessian}, these endpoints are divided by loss barriers along interpolation paths, confirming that the loss landscape consists of distinct solution valleys rather than a single connected basin.
 
-\begin{figure}[htbp]
+To investigate the local geometry of these valleys, we analyzed the Hessian spectrum at the optimization endpoints. As illustrated in Fig.~\ref{fig:landscape_hessian}, the eigenvalue spectrum exhibits a rapid decay regardless of the batch size used during training. The vast majority of dimensions represent ``soft modes'' (near-zero curvature), implying that the solution lies on a manifold that is locally flat in most directions. To quantify this anisotropy, we calculated the contribution of the top-10 eigenvalues to the total curvature (trace of $\mathbf{H}$) for all converged realizations. The selection of the top $k=10$ modes is motivated by prior empirical analyses \cite{sagunEmpiricalAnalysisHessian2018a}, which suggest that the Hessian spectrum of over-parameterized classification networks typically separates into a bulk of near-zero eigenvalues and a small set of large outliers roughly corresponding to the number of classes ($C=10$ for MNIST). For most solutions, these top 10 dimensions alone account for over 80\% of the total curvature, confirming that the optimization effectively confines the system to a low-dimensional active subspace governed by these principal directions.
+
+\begin{figure*}[htbp]
 \centering
-\includegraphics[width=1.0\linewidth]{./Figures_SI/Fig1S_Hessian_spectrum.pdf}
-\caption{\textbf{Hessian spectrum analysis at optimization endpoints.} (a) Rank-ordered eigenvalues $\lambda_i(\mathbf{H})$ of the Hessian matrix computed for the weights connecting the two hidden layers ($d=2,500$). The plot displays the spectrum for a representative learning rate ($\eta=0.02$) across batch sizes $B$ ranging from 10 to 1000. (b) Probability distribution of the top-10 eigenvalue dominance, defined as the ratio of the partial sum of the largest 10 eigenvalues to the trace of the Hessian matrix ($\sum_{i=1}^{10}\lambda_i / \sum_{i=1}^{d}\lambda_i$). The histogram includes all converged realizations across the hyperparameter grid. The high ratio indicates that the local curvature is dominated by a very small number of dimensions.}
-\label{fig:hessian}
-\end{figure}
+% TODO: replace with new merged figure combining old main-text Fig.1 (multi-valley PCA, interpolation barriers) and Hessian spectrum panels
+\includegraphics[width=1.0\textwidth]{./Figures_SI/Fig1S_Hessian_spectrum.pdf}
+\caption{\textbf{Multi-valley landscape structure and Hessian spectrum analysis.}
+% TODO: update caption after redrawing the merged figure. Expected panels:
+% (a) PCA projection of SGD endpoints showing distinct clusters
+% (b) Loss along interpolation paths between endpoints, revealing barriers
+% (c) Rank-ordered Hessian eigenvalues at optimization endpoints
+% (d) Distribution of top-10 eigenvalue dominance
+Placeholder --- see text for description of panels.}
+\label{fig:landscape_hessian}
+\end{figure*}
 
 \subsection{Convergence stability and geometric properties of solutions}
 
@@ -105,13 +114,14 @@ Finally, we recorded the functional performance metrics for all configurations. 
 
 \subsection{Robustness of the freezing time definition}
 
-To verify the robustness of the ``freezing time'' metric, we repeated the analysis in Fig.~3(c) using different loss thresholds $\mathcal{L}_c \in \{0.2, 0.05, 0.01\}$. Fig.~\ref{fig:freeze_time_robustness} presents the corresponding heatmaps of the rescaled freeze time $\tau = \eta \langle t_{\mathrm{freeze}} \rangle$. Across all threshold choices, the qualitative dependence on hyperparameters remains unchanged: increasing SGD noise systematically prolongs the transient phase. This robustness indicates that the delayed entry into a solution valley is an intrinsic dynamical feature of the optimization process, rather than an artifact of the particular cutoff used to define the transition.
+As defined in the main text (Eq.~3), the freezing time $t_f$ is determined by the Jaccard similarity $\mathrm{Sim}_J$ between continuation endpoints: $t_f$ is the earliest checkpoint time after which all subsequent continuation endpoints remain mutually similar above a threshold $S_{\mathrm{th}}$. To verify that this definition is robust, we repeated the freezing time analysis of Fig.~2(a) using different similarity thresholds $S_{\mathrm{th}} \in \{0.90, 0.95, 0.99\}$. Fig.~\ref{fig:freeze_time_robustness} presents the corresponding heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$. Across all threshold choices, the qualitative dependence on hyperparameters remains unchanged: increasing SGD noise (larger $\eta$ or smaller $B$) systematically prolongs the transient phase. This robustness indicates that delayed freezing is an intrinsic dynamical feature of the optimization process, rather than an artifact of the particular similarity cutoff.
 
 \begin{figure*}[htbp]
 \centering
+% TODO: replace with new figure generated using Jaccard-based freezing time
 \includegraphics[width=1.0\textwidth]{./Figures_SI/Fig3S_freeze_time_supplement.pdf}
-\caption{\textbf{Robustness of transient phase duration across different loss thresholds.}
-Heatmaps of the mean rescaled freezing time $\eta \langle t_{\mathrm{freeze}} \rangle$ for different thresholds (a) $\mathcal{L}_c = 0.2$, (b) $\mathcal{L}_c = 0.05$, and (c) $\mathcal{L}_c = 0.01$.}
+\caption{\textbf{Robustness of freezing time across different Jaccard similarity thresholds.}
+Heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$ for different Jaccard similarity thresholds (a) $S_{\mathrm{th}} = 0.90$, (b) $S_{\mathrm{th}} = 0.95$, and (c) $S_{\mathrm{th}} = 0.99$.}
 \label{fig:freeze_time_robustness}
 \end{figure*}
 
@@ -119,9 +129,11 @@ Heatmaps of the mean rescaled freezing time $\eta \langle t_{\mathrm{freeze}} \r
 
 To probe the properties of the basins explored by SGD, we adopted a deterministic continuation protocol. Starting from a standard SGD trajectory ($B=50, \eta=0.05$), we branched the training dynamics at selected time points $t_c$ and continued optimization using full-batch Gradient Descent ($B=1000$) for an additional 2,000 iterations. Because deterministic GD lacks stochastic noise, it cannot escape local minima; consequently, the final solution of each continuation branch effectively identifies the specific loss valley occupied by the optimizer at time $t_c$.
 
-As shown in Fig.~\ref{fig:continuation_details}(a--b) and (d--e), all continuation runs rapidly converge to near-zero training loss and achieve 100\% training accuracy. Despite this apparent convergence, the quality of the accessed basins varies substantially. Figures~\ref{fig:continuation_details}(c) and (f) summarize the corresponding generalization performance: solutions branched at early times ($t_c < 100$) exhibit poor test accuracy, whereas performance improves sharply throughout the transient phase and saturates around the freezing time $t_{\mathrm{freeze}}$. This behavior indicates that SGD actively transitions from low-quality to high-quality basins before becoming dynamically trapped.
+For the systematic grid scan reported in the main text (Fig.~2), we employed a matched continuation protocol: for each hyperparameter setting $(\eta, B)$, the deterministic continuation used the same learning rate $\eta$ as the SGD training trajectory, ensuring that the continuation dynamics probe the basin structure at the same effective gradient scale. This avoids artifacts from a mismatch between the training and probing learning rates. Continuation endpoints were compared using the Jaccard similarity of their misclassified test sets (Eq.~2 of the main text), and the freezing time $t_f$ was determined as defined in Eq.~3 of the main text.
 
-Importantly, this improvement in generalization is tightly linked to the geometry of the loss landscape. Figure~\ref{fig:continuation_details}(g) reveals a strong positive correlation between test accuracy and the flatness metric $F$ ($R^2 = 0.77$), providing further quantitative support for the conclusions drawn in Fig.~3D of the main text.
+As shown in Fig.~\ref{fig:continuation_details}(a--b) and (d--e), all continuation runs rapidly converge to near-zero training loss and achieve 100\% training accuracy. Despite this apparent convergence, the quality of the accessed basins varies substantially. Figures~\ref{fig:continuation_details}(c) and (f) summarize the corresponding generalization performance: solutions branched at early times ($t_c < 100$) exhibit poor test accuracy, whereas performance improves sharply throughout the transient phase and saturates around the freezing time $t_f$. This behavior indicates that SGD actively transitions from low-quality to high-quality basins before becoming dynamically trapped.
+
+Importantly, this improvement in generalization is tightly linked to the geometry of the loss landscape. Figure~\ref{fig:continuation_details}(g) reveals a strong positive correlation between test accuracy and the flatness metric $F$ ($R^2 = 0.77$), providing further quantitative support for the conclusions drawn in Fig.~1(c) and~1(e) of the main text.
 
 \begin{figure*}[htbp]
 \centering
@@ -145,16 +157,16 @@ We conducted a grid search over batch sizes $B \in \{20, 50, 100, 200, 500\}$ an
 \subsubsection{Results}
 The results on CIFAR-10 corroborate the ``distinct valley'' hypothesis presented in the main text. Fig.~\ref{fig:cnn_cifar10}(a) visualizes the optimization dynamics in the projected weight space. Similar to the MNIST results, trajectories do not converge to a single global minimum but instead form isolated clusters, confirming that the loss landscape consists of multiple distinct valleys.
 
-Notably, the separation between valleys is more pronounced for CIFAR-10 than for MNIST. As shown in Fig.~\ref{fig:cnn_cifar10}(b), the overall Jaccard similarity ($\mathrm{Sim}_J$) is substantially lower than that observed in the MNIST setting (Fig.~1(b)), suggesting that different local minima on the CIFAR-10 landscape correspond to functionally more distinct solutions, each failing on different subsets of hard examples.
+Notably, the separation between valleys is more pronounced for CIFAR-10 than for MNIST. As shown in Fig.~\ref{fig:cnn_cifar10}(b), the overall Jaccard similarity ($\mathrm{Sim}_J$) is substantially lower than that observed in the MNIST setting (Fig.~1(d) of the main text), suggesting that different local minima on the CIFAR-10 landscape correspond to functionally more distinct solutions, each failing on different subsets of hard examples.
 
-Despite this increased landscape complexity, the relationship between noise and generalization remains consistent. As shown in Fig.~\ref{fig:cnn_cifar10}(c--f), increasing SGD noise (smaller $B$ or larger $\eta$) systematically drives the optimizer towards valleys that exhibits:
+Despite this increased landscape complexity, the relationship between noise and generalization remains consistent. As shown in Fig.~\ref{fig:cnn_cifar10}(c--f), increasing SGD noise (smaller $B$ or larger $\eta$) systematically drives the optimizer towards valleys that exhibit:
 \begin{itemize}
     \item lower average Jaccard similarity, reflecting broader exploration across distinct valleys (Fig.~\ref{fig:cnn_cifar10}(c));
     \item higher test accuracy (Fig.~\ref{fig:cnn_cifar10}(d));
     \item increased solution flatness (Fig.~\ref{fig:cnn_cifar10}(e));
     \item a prolonged transient phase prior to convergence (Fig.~\ref{fig:cnn_cifar10}(f)).
 \end{itemize}
-Direct comparisons at a fixed learning rate ($\eta=0.005$) further confirm that reducing batch size effectively extend the transient training phase (Fig.~\ref{fig:cnn_cifar10}(g)) and enhances solution flatness (Fig.~\ref{fig:cnn_cifar10}(h)).
+Direct comparisons at a fixed learning rate ($\eta=0.005$) further confirm that reducing batch size effectively extends the transient training phase (Fig.~\ref{fig:cnn_cifar10}(g)) and enhances solution flatness (Fig.~\ref{fig:cnn_cifar10}(h)).
 
 \begin{figure*}[hbtp]
 \centering
@@ -166,7 +178,7 @@ Direct comparisons at a fixed learning rate ($\eta=0.005$) further confirm that 
 (c) Average Jaccard similarity $\langle \mathrm{Sim}_J \rangle$ (lower values indicate greater diversity); 
 (d) Maximum test accuracy $\max(Acc_{\mathrm{test}})$ ; 
 (e) Maximum solution flatness $\max(F)$ ; 
-(f) Normalized mean freezing time $\eta \langle t_{\mathrm{freeze}} \rangle$. Gray regions in the heatmaps indicate divergent settings where no runs achieve 100\% training accuracy.
+(f) Normalized mean freezing time $\eta \langle t_f \rangle$. Gray regions in the heatmaps indicate divergent settings where no runs achieve 100\% training accuracy.
 (g--h) Mean training loss $\langle \mathcal{L}_{\mathrm{train}} \rangle$ (g) and mean flatness $\langle F \rangle$ (h) across multiple runs for different batch sizes $B$ at a fixed learning rate $\eta=0.005$.}
 \label{fig:cnn_cifar10}
 \end{figure*}
@@ -174,7 +186,7 @@ Direct comparisons at a fixed learning rate ($\eta=0.005$) further confirm that 
 \section{Supplementary information of the minimal two-valley model}
 \subsection{Simulation settings}
 
-The two-valley loss landscape $\mathcal{L}(x,y)$ is defined by Eq.~8 in the main text. The geometric properties of the landscape—specifically the bifurcation, valley depth, and flatness—are controlled by a set of fixed parameters. The values used in our simulations are listed in Table~\ref{tab:parameters}.
+The two-valley loss landscape $\mathcal{L}(x,y)$ is defined by Eq.~5 in the main text. The geometric properties of the landscape—specifically the bifurcation, valley depth, and flatness—are controlled by a set of fixed parameters. The values used in our simulations are listed in Table~\ref{tab:parameters}.
 
 \begin{table}[h]
 \centering
@@ -199,7 +211,7 @@ $\mathcal{L}_d$ & $1.0$ & Coefficient for the longitudinal drift speed \\
 \end{tabular}
 \end{table}
 
-The SGD dynamics on this landscape were simulated using the discrete-time update rule given in Eq.~13 of the main text:
+The SGD dynamics on this landscape were simulated using the discrete-time update rule given in Eq.~10 of the main text:
 \begin{equation}
     \bm{\theta}_{t+1} = \bm{\theta}_t - \eta \left( \nabla \mathcal{L}(\bm{\theta}_t) + \bm{\xi}_t \right),
 \end{equation}
@@ -214,28 +226,28 @@ We explored the parameter space by varying both $\eta$ and $\sigma$ across 10 lo
 We quantified the dynamics using two key metrics:
 \begin{enumerate}
     \item \textbf{Convergence probability ($P_\mathrm{flat}$):} The fraction of trajectories that converged to the flatter valley ($x > 0$) by the end of the simulation.
-    \item \textbf{Freezing time ($t_\mathrm{freeze}$):} The iteration index of the final sign change in the $x$-coordinate (i.e., the last crossing of the ridge at $x=0$).
+    \item \textbf{Freezing time ($t_f$):} The iteration index of the final sign change in the $x$-coordinate (i.e., the last crossing of the ridge at $x=0$).
 \end{enumerate}
-The resulting phase diagrams characterizing these dynamics are presented in Fig.~5C and~5D of the main text.
+The resulting phase diagrams characterizing these dynamics are presented in Fig.~3(c) and~3(d) of the main text.
 
 % \subsection{Results of the \texorpdfstring{$\Sigma\propto\mathbf{H}^2$}{Sigma proportional to H squared} case}
 
 % Our analysis indicates that the selection of flat minima is driven by the anisotropic nature of SGD noise, where fluctuations are amplified in directions of high curvature. Consequently, the qualitative behavior of the system should not rely strictly on the linear proportionality $\mathbf{\Sigma} \propto \mathbf{H}$, provided that the noise strength remains monotonically increasing with curvature.
 
-% To validate this robustness, we performed simulations using the quadratic scaling $\mathbf{\Sigma} \propto \mathbf{H}^2$, as derived from the ``Random Shift Model''~\cite{yangStochasticGradientDescent2023}. The results, presented in Fig.~, demonstrate that the convergence probability ($P_\mathrm{flat}$) and the freezing time ($t_\mathrm{freeze}$) are qualitatively consistent with those obtained using the linear model. This confirms that our conclusions regarding stability and flatness selection are insensitive to the specific functional form of the geometry-dependent noise.
+% To validate this robustness, we performed simulations using the quadratic scaling $\mathbf{\Sigma} \propto \mathbf{H}^2$, as derived from the ``Random Shift Model''~\cite{yangStochasticGradientDescent2023}. The results, presented in Fig.~, demonstrate that the convergence probability ($P_\mathrm{flat}$) and the freezing time ($t_f$) are qualitatively consistent with those obtained using the linear model. This confirms that our conclusions regarding stability and flatness selection are insensitive to the specific functional form of the geometry-dependent noise.
 
 \subsection{Robustness under quadratic noise scaling}
 
 Our analysis indicates that the selection of flat minima is driven by the anisotropic nature of SGD noise, where fluctuations are amplified in directions of high curvature. Consequently, the qualitative behavior of the system should not rely strictly on the linear proportionality $\mathbf{\Sigma} \propto \mathbf{H}$, provided that the noise strength remains monotonically increasing with curvature.
 
-To validate this robustness, we performed simulations using the quadratic scaling $\mathbf{\Sigma} \propto \mathbf{H}^2$, as derived from the ``Random Shift Model''~\cite{yangStochasticGradientDescent2023}. The results, presented in Fig.~\ref{fig:toy_model_H2}, demonstrate that the convergence probability ($P_\mathrm{flat}$) and the freezing time ($t_\mathrm{freeze}$) are qualitatively consistent with those obtained using the linear model. Specifically, increasing the learning rate $\eta$ or the noise strength $\sigma$ consistently biases the selection probability towards the flatter minimum (Fig.~\ref{fig:toy_model_H2}A) and prolongs the transient search phase (Fig.~\ref{fig:toy_model_H2}B). This confirms that our conclusions regarding stability and flatness selection are insensitive to the specific functional form of the geometry-dependent noise.
+To validate this robustness, we performed simulations using the quadratic scaling $\mathbf{\Sigma} \propto \mathbf{H}^2$, as derived from the ``Random Shift Model''~\cite{yangStochasticGradientDescent2023}. The results, presented in Fig.~\ref{fig:toy_model_H2}, demonstrate that the convergence probability ($P_\mathrm{flat}$) and the freezing time ($t_f$) are qualitatively consistent with those obtained using the linear model. Specifically, increasing the learning rate $\eta$ or the noise strength $\sigma$ consistently biases the selection probability towards the flatter minimum (Fig.~\ref{fig:toy_model_H2}(a)) and prolongs the transient search phase (Fig.~\ref{fig:toy_model_H2}(b)). This confirms that our conclusions regarding stability and flatness selection are insensitive to the specific functional form of the geometry-dependent noise.
 
 \begin{figure}[hbtp]
 \centering
 \includegraphics[width=1.0\linewidth]{./Figures_SI/Fig6S_toy_model_H2.pdf}
 \caption{\textbf{Robustness of selection mechanism under quadratic noise scaling ($\mathbf{\Sigma} \propto \mathbf{H}^2$).}
 (a) Probability $P_\mathrm{flat}$ of converging to the flat minimum as a function of learning rate $\eta$ and noise strength $\sigma$. 
-(b) Normalized mean freezing time $\eta \langle t_\mathrm{freeze} \rangle$.}
+(b) Normalized mean freezing time $\eta \langle t_f \rangle$.}
 \label{fig:toy_model_H2}
 \end{figure}
 

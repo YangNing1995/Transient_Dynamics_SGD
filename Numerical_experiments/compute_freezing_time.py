@@ -25,7 +25,7 @@ from torch.utils import data
 from torchvision import datasets
 
 from data_utils import get_transform
-from model import FCN
+from model import FCN, SimpleCNN
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -246,6 +246,12 @@ def parse_args():
         "--overwrite_cache",
         action="store_true",
         help="Ignore existing endpoint cache for the selected trajectories.",
+    )
+    parser.add_argument(
+        "--model_type",
+        choices=["fcn", "cnn"],
+        default="fcn",
+        help="Model architecture: fcn (FCN two-hidden-layer MLP) or cnn (SimpleCNN).",
     )
     parser.add_argument(
         "--dry_run",
@@ -1141,7 +1147,11 @@ def main():
     train_loader, test_loader, train_count, test_count = make_loaders(args)
     print(f"Train samples: {train_count}; test samples: {test_count}")
 
-    model = FCN(input_dim=input_dim_for_dataset(args.dataset_name), hidden=args.hidden_num).to(device)
+    input_dim = input_dim_for_dataset(args.dataset_name)
+    if args.model_type == "cnn":
+        model = SimpleCNN(input_dim=input_dim, hidden=args.hidden_num).to(device)
+    else:
+        model = FCN(input_dim=input_dim, hidden=args.hidden_num).to(device)
     criterion = ClassificationLoss(args.loss_type)
 
     summary_path = args.output_dir / "freezing_time_summary.csv"

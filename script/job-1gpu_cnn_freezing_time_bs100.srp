@@ -19,7 +19,7 @@ source /appsnew/source/Tensorflow1.13_Keras2.2_Pytorch1.1_py3.7.3_cuda9.sh
 set -euo pipefail
 
 CODE_DIR=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/Numerical_experiments
-DATA_ROOT=${CODE_DIR}/data
+DATA_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/data
 CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_cnn
 OUTPUT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_cnn_jaccard
 
@@ -101,7 +101,7 @@ for LR in "${LR_LIST[@]}"; do
   echo "--- ${CONDITION_TAG}: eval_every=${EVAL_EVERY}, min_cont=${MIN_CONTINUATION_STEPS}, coarse=${COARSE_CHECKPOINT_STRIDE}, fine=${FINE_CHECKPOINT_STRIDE}"
   mkdir -p "${CONDITION_OUT}"
 
-  run_timed "jaccard_${CONDITION_TAG}" python "${CODE_DIR}/compute_freezing_time.py"     --model_type ${MODEL_TYPE}     --dataset_name ${DATASET}     --data_dir "${DATA_ROOT}"     --train_num ${TRAIN_NUM}     --test_num ${TEST_NUM}     --hidden_num ${HIDDEN_NUM}     --checkpoint_dir "${CHECKPOINT_ROOT}"     --checkpoint_subdir_template "${SUBDIR_TEMPLATE}"     --batch_sizes ${BS}     --learning_rates ${LR}     --repeat_start ${REPEAT_START}     --repeat_end ${REPEAT_END}     --reference_iteration auto     --continuation_budget_mode to_reference     --continuation_lr training     --loss_type ${LOSS_TYPE}     --coarse_checkpoint_stride ${COARSE_CHECKPOINT_STRIDE}     --fine_checkpoint_stride ${FINE_CHECKPOINT_STRIDE}     --early_stop_loss 0.005     --early_stop_acc 1.0     --early_stop_patience 3     --min_continuation_steps ${MIN_CONTINUATION_STEPS}     --eval_every ${EVAL_EVERY}     --max_continuation_steps 2000     --output_dir "${CONDITION_OUT}"     --basin_mode jaccard     --jaccard_threshold 0.9   || echo "WARNING: ${CONDITION_TAG} returned non-zero exit code"
+  run_timed "jaccard_${CONDITION_TAG}" python "${CODE_DIR}/compute_freezing_time.py"     --model_type ${MODEL_TYPE}     --dataset_name ${DATASET}     --data_dir "${DATA_ROOT}"     --train_num ${TRAIN_NUM}     --test_num ${TEST_NUM}     --hidden_num ${HIDDEN_NUM}     --checkpoint_dir "${CHECKPOINT_ROOT}"     --checkpoint_subdir_template "${SUBDIR_TEMPLATE}"     --batch_sizes ${BS}     --learning_rates ${LR}     --repeat_start ${REPEAT_START}     --repeat_end ${REPEAT_END}     --reference_iteration auto     --continuation_budget_mode to_reference     --continuation_lr training     --loss_type ${LOSS_TYPE}     --coarse_checkpoint_stride ${COARSE_CHECKPOINT_STRIDE}     --fine_checkpoint_stride ${FINE_CHECKPOINT_STRIDE}     --early_stop_loss 0.005     --early_stop_acc 1.0     --early_stop_patience 3     --min_continuation_steps ${MIN_CONTINUATION_STEPS}     --eval_every ${EVAL_EVERY}     --max_continuation_steps 2000     --continuation_micro_batch_size 1000     --output_dir "${CONDITION_OUT}"     --basin_mode jaccard     --jaccard_threshold 0.9   || echo "WARNING: ${CONDITION_TAG} returned non-zero exit code"
 
 done
 

@@ -201,6 +201,19 @@ def parse_args():
         default=-1,
         help="Batch size for continuation. Use -1 for full train set.",
     )
+    parser.add_argument(
+        "--continuation_micro_batch_size",
+        type=int,
+        default=-1,
+        help=(
+            "Micro-batch size for gradient accumulation during continuation. "
+            "Only affects memory usage, not training semantics. When the "
+            "effective continuation batch is the full dataset (-1), this "
+            "splits forward/backward into smaller chunks and accumulates "
+            "gradients. Use -1 to disable (single pass). "
+            "Example: --continuation_micro_batch_size 1000"
+        ),
+    )
     parser.add_argument("--max_continuation_steps", type=int, default=2000)
     parser.add_argument(
         "--max_continuation_eta_product",
@@ -345,9 +358,17 @@ def make_loaders(args):
     if continuation_batch_size == -1:
         continuation_batch_size = len(train_dataset)
 
+    # When gradient accumulation is requested, use micro-batch size for the
+    # DataLoader but accumulate gradients to simulate full-batch GD.
+    micro_bs = args.continuation_micro_batch_size
+    if micro_bs > 0 and micro_bs < continuation_batch_size:
+        loader_batch_size = micro_bs
+    else:
+        loader_batch_size = continuation_batch_size
+
     train_loader = data.DataLoader(
         train_dataset,
-        batch_size=continuation_batch_size,
+        batch_size=loader_batch_size,
         shuffle=False,
     )
     test_loader = data.DataLoader(
@@ -593,24 +614,35 @@ def run_continuation_to_endpoint(
     model.train()
 
     optimizer = torch.optim.SGD(model.parameters(), lr=continuation_lr)
-    loader_iter = iter(train_loader)
     converged = False
     patience_count = 0
 
+    # Gradient accumulation: when the loader has multiple batches (due to
+    # --continuation_micro_batch_size), iterate over all of them per step to
+    # simulate full-batch GD while fitting in GPU memory.
+    num_loader_batches = len(train_loader)
+    use_grad_accum = num_loader_batches > 1
+    total_train_count = len(train_loader.dataset)
+
     step = 0
     for step in range(1, continuation_steps_budget + 1):
-        try:
-            batch_data, batch_target = next(loader_iter)
-        except StopIteration:
-            loader_iter = iter(train_loader)
-            batch_data, batch_target = next(loader_iter)
-
-        batch_data = batch_data.to(device)
-        batch_target = batch_target.to(device)
         optimizer.zero_grad()
-        output = model(batch_data)
-        loss = criterion(output, batch_target)
-        loss.backward()
+        if use_grad_accum:
+            for batch_data, batch_target in train_loader:
+                batch_data = batch_data.to(device)
+                batch_target = batch_target.to(device)
+                output = model(batch_data)
+                loss = criterion(output, batch_target)
+                # Scale so accumulated gradient equals full-batch gradient
+                scaled_loss = loss * (batch_data.size(0) / total_train_count)
+                scaled_loss.backward()
+        else:
+            batch_data, batch_target = next(iter(train_loader))
+            batch_data = batch_data.to(device)
+            batch_target = batch_target.to(device)
+            output = model(batch_data)
+            loss = criterion(output, batch_target)
+            loss.backward()
         optimizer.step()
 
         if step >= args.min_continuation_steps and step % args.eval_every == 0:

@@ -115,37 +115,39 @@ Finally, we recorded the functional performance metrics for all configurations. 
 \label{fig:solution_stats}
 \end{figure*}
 
-\subsection{Robustness of the freezing time definition}
-
-As defined in the main text (Eq.~3), the freezing time $t_f$ is determined by the Jaccard similarity $\mathrm{Sim}_J$ between continuation endpoints: $t_f$ is the earliest checkpoint time after which all subsequent continuation endpoints remain mutually similar above a threshold $S_{\mathrm{th}}$. To verify that this definition is robust, we repeated the freezing time analysis of Fig.~2(a) using different similarity thresholds $S_{\mathrm{th}} \in \{0.90, 0.95, 0.99\}$. Fig.~\ref{fig:freeze_time_robustness} presents the corresponding heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$. Across all threshold choices, the qualitative dependence on hyperparameters remains unchanged: increasing SGD noise (larger $\eta$ or smaller $B$) systematically prolongs the transient phase. This robustness indicates that delayed freezing is an intrinsic dynamical feature of the optimization process, rather than an artifact of the particular similarity cutoff.
-
-\begin{figure*}[htbp]
-\centering
-% TODO: replace with new figure generated using Jaccard-based freezing time
-\includegraphics[width=1.0\textwidth]{./Figures_SI/Fig3S_freeze_time_supplement.pdf}
-\caption{\textbf{Robustness of freezing time across different Jaccard similarity thresholds.}
-Heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$ for different Jaccard similarity thresholds (a) $S_{\mathrm{th}} = 0.90$, (b) $S_{\mathrm{th}} = 0.95$, and (c) $S_{\mathrm{th}} = 0.99$.}
-\label{fig:freeze_time_robustness}
-\end{figure*}
-
 \subsection{Details of continuation training}
 
-To probe the properties of the basins explored by SGD, we adopted a deterministic continuation protocol. Starting from a standard SGD trajectory ($B=50, \eta=0.05$), we branched the training dynamics at selected time points $t_c$ and continued optimization using full-batch Gradient Descent ($B=1000$) for an additional 2,000 iterations. Because deterministic GD lacks stochastic noise, it cannot escape local minima; consequently, the final solution of each continuation branch effectively identifies the specific loss valley occupied by the optimizer at time $t_c$.
+To probe the basin occupied by an SGD trajectory at a given time, we use a deterministic continuation protocol. At a selected checkpoint time $t_c$, we load the SGD weights and continue optimization using full-batch gradient descent (GD) on the entire training set. Because full-batch GD removes mini-batch stochasticity, it cannot escape local minima; the continuation therefore descends into the basin determined by the starting point. The resulting endpoint identifies the specific loss valley occupied by the SGD trajectory at time $t_c$.
 
-For the systematic grid scan reported in the main text (Fig.~2), we employed a matched continuation protocol: for each hyperparameter setting $(\eta, B)$, the deterministic continuation used the same learning rate $\eta$ as the SGD training trajectory, ensuring that the continuation dynamics probe the basin structure at the same effective gradient scale. This avoids artifacts from a mismatch between the training and probing learning rates. Continuation endpoints were compared using the Jaccard similarity of their misclassified test sets (Eq.~2 of the main text), and the freezing time $t_f$ was determined as defined in Eq.~3 of the main text.
-
-As shown in Fig.~\ref{fig:continuation_details}(a--b) and (d--e), all continuation runs rapidly converge to near-zero training loss and achieve 100\% training accuracy. Despite this apparent convergence, the quality of the accessed basins varies substantially. Figures~\ref{fig:continuation_details}(c) and (f) summarize the corresponding generalization performance: solutions branched at early times ($t_c < 100$) exhibit poor test accuracy, whereas performance improves sharply throughout the transient phase and saturates around the freezing time $t_f$. This behavior indicates that SGD actively transitions from low-quality to high-quality basins before becoming dynamically trapped.
-
-Importantly, this improvement in generalization is tightly linked to the geometry of the loss landscape. Figure~\ref{fig:continuation_details}(g) reveals a strong positive correlation between test accuracy and the flatness metric $F$ ($R^2 = 0.77$), providing further quantitative support for the conclusions drawn in Fig.~1(c) and~1(e) of the main text.
+As an illustrative example (Fig.~1 of the main text), we started from a reference SGD trajectory trained with $B=50$, $\eta=0.05$. At each of the 101 checkpoints (evenly spaced in $[0, T]$ where $T = 100/\eta = 2000$), we branched training and continued with full-batch GD at $\eta = 0.05$ for up to 2,000 additional iterations. As shown in Fig.~\ref{fig:continuation_details}(a--b) and (d--e), all continuation runs rapidly converge to near-zero training loss and 100\% training accuracy. Despite this uniform convergence, the quality of the accessed basins varies substantially. Figures~\ref{fig:continuation_details}(c) and (f) show that solutions branched at early times ($t_c < 100$) exhibit poor test accuracy, whereas performance improves sharply throughout the transient phase and saturates around the freezing time $t_f$. This behavior indicates that SGD actively transitions from low-quality to high-quality basins before becoming dynamically trapped. Figure~\ref{fig:continuation_details}(g) further reveals a strong positive correlation between test accuracy and the flatness metric $F$ ($R^2 = 0.77$), providing quantitative support for the conclusions drawn in Fig.~1(c) and~1(e) of the main text.
 
 \begin{figure*}[htbp]
 \centering
-\includegraphics[width=1.0\textwidth]{./Figures_SI/Fig4S_escaping_behavior_supplement.pdf}
+\includegraphics[width=1.0\textwidth]{./Figures_SI/Fig3S_escaping_behavior_supplement.pdf}
 \caption{\textbf{Dynamics of continuation training.}
 (a--c) Evolution of training loss (a), training accuracy (b), and test accuracy (c) for continuation runs branched at different times $t_c$. The solid blue curve denotes the reference SGD trajectory, while the colored curves correspond to deterministic GD continuations.
 (d--f) Final training loss (d), training accuracy (e), and test accuracy (f) as functions of $t_c$.
 (g) Correlation between solution flatness $F$ and final test accuracy, with $R^2 = 0.77$.}
 \label{fig:continuation_details}
+\end{figure*}
+
+\subsection{Freezing time estimation and robustness}
+
+For the systematic grid scan reported in the main text (Fig.~2), we employed a \emph{matched continuation} protocol: for each hyperparameter setting $(\eta, B)$, the continuation GD used the same learning rate $\eta$ as the SGD training trajectory. This ensures that the continuation dynamics probe the basin structure at the same effective gradient scale, avoiding artifacts from a learning rate mismatch. Each continuation ran on the full training set with early stopping: training was terminated when the training loss fell below $5 \times 10^{-3}$ and the accuracy reached 100\%, with a patience of 3 consecutive evaluations.
+
+Basin identity was assessed by comparing each continuation endpoint to a reference endpoint obtained from the final SGD checkpoint. Specifically, we used the Jaccard similarity of their misclassified test sets (Eq.~2 of the main text), declaring two endpoints to be in the same basin when $\mathrm{Sim}_J \ge S_\mathrm{th}$ with $S_\mathrm{th} = 0.9$.
+
+To determine the freezing time $t_f$ (Eq.~3 of the main text) efficiently, we used a coarse-to-fine adaptive scan. Starting from the reference checkpoint, we scanned backward through every 10th saved checkpoint. If a checkpoint yielded an endpoint in a different basin, we refined the search in that neighborhood by examining every saved checkpoint between the last matching and first mismatching coarse points. The freezing time was then identified as the earliest checkpoint after which all subsequent endpoints remained in the same basin as the reference.
+
+To verify that this definition is robust to the choice of similarity threshold, we repeated the freezing time analysis of Fig.~2(a) using $S_{\mathrm{th}} \in \{0.90, 0.95, 0.99\}$. Fig.~\ref{fig:freeze_time_robustness} presents the corresponding heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$. Across all threshold choices, the qualitative dependence on hyperparameters remains unchanged: increasing SGD noise (larger $\eta$ or smaller $B$) systematically prolongs the transient phase. This robustness indicates that delayed freezing is an intrinsic dynamical feature of the optimization process, rather than an artifact of the particular similarity cutoff.
+
+\begin{figure*}[htbp]
+\centering
+% TODO: replace with new figure generated using Jaccard-based freezing time
+\includegraphics[width=1.0\textwidth]{./Figures_SI/Fig4S_freeze_time_supplement.pdf}
+\caption{\textbf{Robustness of freezing time across different Jaccard similarity thresholds.}
+Heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$ for different Jaccard similarity thresholds (a) $S_{\mathrm{th}} = 0.90$, (b) $S_{\mathrm{th}} = 0.95$, and (c) $S_{\mathrm{th}} = 0.99$.}
+\label{fig:freeze_time_robustness}
 \end{figure*}
 
 \subsection{Generalization to convolutional neural networks on CIFAR-10}

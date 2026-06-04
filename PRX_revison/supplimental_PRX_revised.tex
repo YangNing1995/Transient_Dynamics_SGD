@@ -133,20 +133,18 @@ As an illustrative example (Fig.~1 of the main text), we started from a referenc
 
 \subsection{Freezing time estimation and robustness}
 
-For the systematic grid scan reported in the main text (Fig.~2), we employed a \emph{matched continuation} protocol: for each hyperparameter setting $(\eta, B)$, the continuation GD used the same learning rate $\eta$ as the SGD training trajectory. This ensures that the continuation dynamics probe the basin structure at the same effective gradient scale, avoiding artifacts from a learning rate mismatch. Each continuation ran on the full training set with early stopping: training was terminated when the training loss fell below $5 \times 10^{-3}$ and the accuracy reached 100\%, with a patience of 3 consecutive evaluations.
+For the systematic grid scan reported in the main text (Fig.~2), we employed a \emph{matched continuation} protocol: for each hyperparameter setting $(\eta, B)$, the continuation GD used the same learning rate $\eta$ as the SGD training trajectory, ensuring that the continuation dynamics probe the basin structure at the same effective gradient scale. Each continuation ran on the full training set with early stopping (training loss $< 5 \times 10^{-3}$, accuracy $= 100\%$, patience of 3 evaluations). Basin identity was assessed by comparing each continuation endpoint to a reference endpoint obtained from the final SGD checkpoint using the Jaccard similarity of their misclassified test sets (Eq.~2 of the main text), declaring two endpoints to be in the same basin when $\mathrm{Sim}_J \ge S_\mathrm{th}$ with $S_\mathrm{th} = 0.9$. To determine the freezing time $t_f$ (Eq.~3 of the main text) efficiently, we used a coarse-to-fine adaptive scan: starting from the reference checkpoint, we scanned backward through every 10th saved checkpoint and, upon finding a basin mismatch, refined the search by examining every checkpoint in that neighborhood. The freezing time was then identified as the earliest checkpoint after which all subsequent endpoints remained in the same basin as the reference.
 
-Basin identity was assessed by comparing each continuation endpoint to a reference endpoint obtained from the final SGD checkpoint. Specifically, we used the Jaccard similarity of their misclassified test sets (Eq.~2 of the main text), declaring two endpoints to be in the same basin when $\mathrm{Sim}_J \ge S_\mathrm{th}$ with $S_\mathrm{th} = 0.9$.
-
-To determine the freezing time $t_f$ (Eq.~3 of the main text) efficiently, we used a coarse-to-fine adaptive scan. Starting from the reference checkpoint, we scanned backward through every 10th saved checkpoint. If a checkpoint yielded an endpoint in a different basin, we refined the search in that neighborhood by examining every saved checkpoint between the last matching and first mismatching coarse points. The freezing time was then identified as the earliest checkpoint after which all subsequent endpoints remained in the same basin as the reference.
-
-To verify that this definition is robust to the choice of similarity threshold, we repeated the freezing time analysis of Fig.~2(a) using $S_{\mathrm{th}} \in \{0.90, 0.95, 0.99\}$. Fig.~\ref{fig:freeze_time_robustness} presents the corresponding heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$. Across all threshold choices, the qualitative dependence on hyperparameters remains unchanged: increasing SGD noise (larger $\eta$ or smaller $B$) systematically prolongs the transient phase. This robustness indicates that delayed freezing is an intrinsic dynamical feature of the optimization process, rather than an artifact of the particular similarity cutoff.
+To verify robustness, we repeated the analysis using $S_{\mathrm{th}} \in \{0.90, 0.95, 0.99\}$ (Fig.~\ref{fig:freeze_time_robustness}(a--c)). Across all threshold choices, the qualitative dependence on hyperparameters remains unchanged: increasing SGD noise systematically prolongs the transient phase. We further compared the Jaccard-based freezing time with two alternative definitions: a prediction agreement criterion, where two endpoints are assigned to the same basin when they agree on the class labels of $\geq 99\%$ of the test samples (Fig.~\ref{fig:freeze_time_robustness}(d)); and a simple loss proxy that defines the freezing time as the first iteration at which the training loss drops below $\mathcal{L}_c = 0.1$ (Fig.~\ref{fig:freeze_time_robustness}(e)). As shown in the scatter plot (Fig.~\ref{fig:freeze_time_robustness}(f)), both alternative definitions exhibit strong positive correlations with the Jaccard-based freezing time ($R^2 = 0.89$ for prediction agreement, $R^2 = 0.90$ for loss proxy), confirming that delayed freezing is an intrinsic dynamical feature of the optimization process rather than an artifact of the particular definition.
 
 \begin{figure*}[htbp]
 \centering
-% TODO: replace with new figure generated using Jaccard-based freezing time
 \includegraphics[width=1.0\textwidth]{./Figures_SI/Fig4S_freeze_time_supplement.pdf}
-\caption{\textbf{Robustness of freezing time across different Jaccard similarity thresholds.}
-Heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$ for different Jaccard similarity thresholds (a) $S_{\mathrm{th}} = 0.90$, (b) $S_{\mathrm{th}} = 0.95$, and (c) $S_{\mathrm{th}} = 0.99$.}
+\caption{\textbf{Robustness of freezing time across different definitions.}
+(a--c) Heatmaps of the normalized mean freezing time $\eta \langle t_f \rangle$ using the Jaccard similarity with thresholds $S_{\mathrm{th}} = 0.90$ (a), $0.95$ (b), and $0.99$ (c).
+(d) Freezing time defined via prediction agreement ($\geq 99\%$).
+(e) Freezing time defined via the loss proxy ($\mathcal{L} \leq 0.1$). Gray cells denote divergent conditions where no runs converge.
+(f) Scatter plot comparing the Jaccard-based freezing time ($S_{\mathrm{th}} = 0.90$) with the two alternative definitions; dashed line indicates $y = x$.}
 \label{fig:freeze_time_robustness}
 \end{figure*}
 
@@ -160,31 +158,23 @@ We utilized the CIFAR-10 dataset, which consists of 60,000 $32 \times 32$ color 
 We conducted a grid search over batch sizes $B \in \{20, 50, 100, 200, 500\}$ and learning rates $\eta \in \{0.002, 0.005, 0.01, 0.02, 0.05\}$. For each condition, 10 independent realizations were trained. To analyze the landscape geometry and solution diversity, we specifically focused on the weight matrix connecting the hidden layer to the output layer. This matrix corresponds to a parameter space of $d=1,280$ dimensions ($128 \times 10$).
 
 \subsubsection{Results}
-The results on CIFAR-10 corroborate the ``distinct valley'' hypothesis presented in the main text. Fig.~\ref{fig:cnn_cifar10}(a) visualizes the optimization dynamics in the projected weight space. Similar to the MNIST results, trajectories do not converge to a single global minimum but instead form isolated clusters, confirming that the loss landscape consists of multiple distinct valleys.
+The results on CIFAR-10 corroborate the transient freezing mechanism presented in the main text. Fig.~\ref{fig:cnn_cifar10}(a) visualizes the optimization dynamics in the projected weight space. Similar to the MNIST results, trajectories do not converge to a single global minimum but instead form isolated clusters, confirming that the loss landscape consists of multiple distinct valleys. As shown in Fig.~\ref{fig:cnn_cifar10}(b), the overall Jaccard similarity ($\mathrm{Sim}_J$) is substantially lower than that observed in the MNIST setting (Fig.~1(d) of the main text), suggesting that different local minima on the CIFAR-10 landscape correspond to functionally more distinct solutions.
 
-Notably, the separation between valleys is more pronounced for CIFAR-10 than for MNIST. As shown in Fig.~\ref{fig:cnn_cifar10}(b), the overall Jaccard similarity ($\mathrm{Sim}_J$) is substantially lower than that observed in the MNIST setting (Fig.~1(d) of the main text), suggesting that different local minima on the CIFAR-10 landscape correspond to functionally more distinct solutions, each failing on different subsets of hard examples.
-
-Despite this increased landscape complexity, the relationship between noise and generalization remains consistent. As shown in Fig.~\ref{fig:cnn_cifar10}(c--f), increasing SGD noise (smaller $B$ or larger $\eta$) systematically drives the optimizer towards valleys that exhibit:
-\begin{itemize}
-    \item lower average Jaccard similarity, reflecting broader exploration across distinct valleys (Fig.~\ref{fig:cnn_cifar10}(c));
-    \item higher test accuracy (Fig.~\ref{fig:cnn_cifar10}(d));
-    \item increased solution flatness (Fig.~\ref{fig:cnn_cifar10}(e));
-    \item a prolonged transient phase prior to convergence (Fig.~\ref{fig:cnn_cifar10}(f)).
-\end{itemize}
-Direct comparisons at a fixed learning rate ($\eta=0.005$) further confirm that reducing batch size effectively extends the transient training phase (Fig.~\ref{fig:cnn_cifar10}(g)) and enhances solution flatness (Fig.~\ref{fig:cnn_cifar10}(h)).
+The heatmap panels (Fig.~\ref{fig:cnn_cifar10}(c--f)) mirror the structure of Fig.~2 in the main text. Because the continuation-based freezing time estimation requires training a separate GD trajectory for every checkpoint of every repeat---a cost that scales with the larger dataset and deeper architecture---we adopted the loss proxy definition ($\mathcal{L}_\mathrm{train} \leq 0.1$) validated in Sec.~I~E (Fig.~\ref{fig:freeze_time_robustness}(e,\,f); $R^2 = 0.90$). As shown in Fig.~\ref{fig:cnn_cifar10}(c), the normalized mean freezing time $\eta\langle t_f \rangle$ increases systematically with SGD noise, consistent with the MNIST results. The same noise ordering is reflected in the across-repeat RMS endpoint radius $r_\theta$ (Fig.~\ref{fig:cnn_cifar10}(d)), the mean final flatness $\langle F \rangle$ (Fig.~\ref{fig:cnn_cifar10}(e)), and the best-of-repeats test accuracy $\max(\mathrm{Acc}_\mathrm{test})$ (Fig.~\ref{fig:cnn_cifar10}(f)). Direct comparisons at a fixed learning rate ($\eta=0.005$) further confirm that reducing batch size extends the transient training phase (Fig.~\ref{fig:cnn_cifar10}(g)) and enhances solution flatness (Fig.~\ref{fig:cnn_cifar10}(h)).
 
 \begin{figure*}[hbtp]
 \centering
 \includegraphics[width=1.0\textwidth]{./Figures_SI/Fig5S_cnn_cifar10.pdf}
-\caption{\textbf{Generalization of findings to a Convolutional Neural Network on CIFAR-10.} 
-(a) A 2D Principal Component Analysis (PCA) projection of the weight training trajectories with different SGD hyperparameters (learning rate $\eta$ and batch size $B$), indicated by different colors and marker styles.
-(b) The Jaccard similarity ($\mathrm{Sim}_J$) matrix between pairs of solutions.
-(c--f) Heatmaps across the hyperparameter grid ($\eta, B$) for: 
-(c) Average Jaccard similarity $\langle \mathrm{Sim}_J \rangle$ (lower values indicate greater diversity); 
-(d) Maximum test accuracy $\max(Acc_{\mathrm{test}})$ ; 
-(e) Maximum solution flatness $\max(F)$ ; 
-(f) Normalized mean freezing time $\eta \langle t_f \rangle$. Gray regions in the heatmaps indicate divergent settings where no runs achieve 100\% training accuracy.
-(g--h) Mean training loss $\langle \mathcal{L}_{\mathrm{train}} \rangle$ (g) and mean flatness $\langle F \rangle$ (h) across multiple runs for different batch sizes $B$ at a fixed learning rate $\eta=0.005$.}
+\caption{\textbf{Generalization of findings to a Convolutional Neural Network on CIFAR-10.}
+(a) PCA projection of weight training trajectories for different SGD hyperparameters (learning rate $\eta$ and batch size $B$), indicated by different colors and marker styles.
+(b) Jaccard similarity ($\mathrm{Sim}_J$) matrix between pairs of final solutions.
+(c--f) Heatmaps across the hyperparameter grid ($\eta, B$), mirroring the layout of Fig.~2 in the main text:
+(c) Normalized mean freezing time $\eta \langle t_f \rangle$ estimated via the loss proxy ($\mathcal{L}_\mathrm{train} \leq 0.1$);
+(d) Across-repeat RMS endpoint radius $r_\theta$;
+(e) Mean final flatness $\langle F \rangle$;
+(f) Best-of-repeats test accuracy $\max(\mathrm{Acc}_{\mathrm{test}})$.
+Gray cells indicate divergent settings where no runs achieve 100\% training accuracy.
+(g,\,h) Mean training loss $\langle \mathcal{L}_{\mathrm{train}} \rangle$ (g) and mean flatness $\langle F \rangle$ (h) across runs for different batch sizes $B$ at a fixed learning rate $\eta=0.005$.}
 \label{fig:cnn_cifar10}
 \end{figure*}
 

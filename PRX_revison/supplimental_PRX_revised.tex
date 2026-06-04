@@ -160,7 +160,9 @@ We conducted a grid search over batch sizes $B \in \{20, 50, 100, 200, 500\}$ an
 \subsubsection{Results}
 The results on CIFAR-10 corroborate the transient freezing mechanism presented in the main text. Fig.~\ref{fig:cnn_cifar10}(a) visualizes the optimization dynamics in the projected weight space. Similar to the MNIST results, trajectories do not converge to a single global minimum but instead form isolated clusters, confirming that the loss landscape consists of multiple distinct valleys. As shown in Fig.~\ref{fig:cnn_cifar10}(b), the overall Jaccard similarity ($\mathrm{Sim}_J$) is substantially lower than that observed in the MNIST setting (Fig.~1(d) of the main text), suggesting that different local minima on the CIFAR-10 landscape correspond to functionally more distinct solutions.
 
-The heatmap panels (Fig.~\ref{fig:cnn_cifar10}(c--f)) mirror the structure of Fig.~2 in the main text. Because the continuation-based freezing time estimation requires training a separate GD trajectory for every checkpoint of every repeat---a cost that scales with the larger dataset and deeper architecture---we adopted the loss proxy definition ($\mathcal{L}_\mathrm{train} \leq 0.1$) validated in Sec.~I~E (Fig.~\ref{fig:freeze_time_robustness}(e,\,f); $R^2 = 0.90$). As shown in Fig.~\ref{fig:cnn_cifar10}(c), the normalized mean freezing time $\eta\langle t_f \rangle$ increases systematically with SGD noise, consistent with the MNIST results. The same noise ordering is reflected in the across-repeat RMS endpoint radius $r_\theta$ (Fig.~\ref{fig:cnn_cifar10}(d)), the mean final flatness $\langle F \rangle$ (Fig.~\ref{fig:cnn_cifar10}(e)), and the best-of-repeats test accuracy $\max(\mathrm{Acc}_\mathrm{test})$ (Fig.~\ref{fig:cnn_cifar10}(f)). Direct comparisons at a fixed learning rate ($\eta=0.005$) further confirm that reducing batch size extends the transient training phase (Fig.~\ref{fig:cnn_cifar10}(g)) and enhances solution flatness (Fig.~\ref{fig:cnn_cifar10}(h)).
+Direct comparisons at a fixed learning rate ($\eta=0.005$) confirm that reducing batch size extends the transient training phase (Fig.~\ref{fig:cnn_cifar10}(c)) and enhances solution flatness (Fig.~\ref{fig:cnn_cifar10}(d)). The Hessian eigenvalue spectrum of the final solutions (Fig.~\ref{fig:cnn_cifar10}(e)) shows that smaller batch sizes produce flatter minima with systematically smaller leading eigenvalues, consistent with the flatness metric $F$.
+
+The heatmap panels (Fig.~\ref{fig:cnn_cifar10}(f--i)) mirror the structure of Fig.~2 in the main text. Because the continuation-based freezing time estimation requires training a separate GD trajectory for every checkpoint of every repeat---a cost that scales with the larger dataset and deeper architecture---we adopted the loss proxy definition ($\mathcal{L}_\mathrm{train} \leq 0.1$) validated in Sec.~I~E (Fig.~\ref{fig:freeze_time_robustness}(e,\,f); $R^2 = 0.90$). As shown in Fig.~\ref{fig:cnn_cifar10}(f), the normalized mean freezing time $\eta\langle t_f \rangle$ increases systematically with SGD noise, consistent with the MNIST results. The same noise ordering is reflected in the across-repeat RMS endpoint radius $r_\theta$ (Fig.~\ref{fig:cnn_cifar10}(g)), the mean final flatness $\langle F \rangle$ (Fig.~\ref{fig:cnn_cifar10}(h)), and the best-of-repeats test accuracy $\max(\mathrm{Acc}_\mathrm{test})$ (Fig.~\ref{fig:cnn_cifar10}(i)).
 
 \begin{figure*}[hbtp]
 \centering
@@ -168,13 +170,14 @@ The heatmap panels (Fig.~\ref{fig:cnn_cifar10}(c--f)) mirror the structure of Fi
 \caption{\textbf{Generalization of findings to a Convolutional Neural Network on CIFAR-10.}
 (a) PCA projection of weight training trajectories for different SGD hyperparameters (learning rate $\eta$ and batch size $B$), indicated by different colors and marker styles.
 (b) Jaccard similarity ($\mathrm{Sim}_J$) matrix between pairs of final solutions.
-(c--f) Heatmaps across the hyperparameter grid ($\eta, B$), mirroring the layout of Fig.~2 in the main text:
-(c) Normalized mean freezing time $\eta \langle t_f \rangle$ estimated via the loss proxy ($\mathcal{L}_\mathrm{train} \leq 0.1$);
-(d) Across-repeat RMS endpoint radius $r_\theta$;
-(e) Mean final flatness $\langle F \rangle$;
-(f) Best-of-repeats test accuracy $\max(\mathrm{Acc}_{\mathrm{test}})$.
-Gray cells indicate divergent settings where no runs achieve 100\% training accuracy.
-(g,\,h) Mean training loss $\langle \mathcal{L}_{\mathrm{train}} \rangle$ (g) and mean flatness $\langle F \rangle$ (h) across runs for different batch sizes $B$ at a fixed learning rate $\eta=0.005$.}
+(c,\,d) Mean training loss $\langle \mathcal{L}_{\mathrm{train}} \rangle$ (c) and mean flatness $\langle F \rangle$ (d) across runs for different batch sizes $B$ at a fixed learning rate $\eta=0.005$; the dashed line in (c) marks the loss proxy threshold $\mathcal{L}_\mathrm{train}=0.1$.
+(e) Hessian eigenvalue spectrum $\lambda_i(\mathbf{H})$ of the final solutions for each batch size at $\eta=0.01$.
+(f--i) Heatmaps across the hyperparameter grid ($\eta, B$), mirroring the layout of Fig.~2 in the main text:
+(f) Normalized mean freezing time $\eta \langle t_f \rangle$ estimated via the loss proxy ($\mathcal{L}_\mathrm{train} \leq 0.1$);
+(g) Across-repeat RMS endpoint radius $r_\theta$;
+(h) Mean final flatness $\langle F \rangle$;
+(i) Best-of-repeats test accuracy $\max(\mathrm{Acc}_{\mathrm{test}})$.
+Gray cells indicate divergent settings where no runs achieve 100\% training accuracy.}
 \label{fig:cnn_cifar10}
 \end{figure*}
 

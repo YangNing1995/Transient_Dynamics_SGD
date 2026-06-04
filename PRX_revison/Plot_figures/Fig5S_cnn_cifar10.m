@@ -12,6 +12,14 @@ num_bs = length(bs_list);
 num_lr = length(lr_list);
 num_realizations = 10;
 num_timepoints = 101;
+export_res = 600;
+
+%% Output directory
+script_dir = fileparts(mfilename('fullpath'));
+prx_root = fileparts(script_dir);
+addpath(script_dir);  % for viridis.m
+save_dir = fullfile(prx_root, 'Figures_SI', 'Fig5S_cnn_cifar10');
+if ~exist(save_dir, 'dir'), mkdir(save_dir); end
 
 %% Load data
 Data_dir = 'E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Data\save_data_cnn\';
@@ -103,6 +111,10 @@ posy = get(hy, 'Position');
 set(hx, 'Position', posx + [0 0 0]);         % Move closer in y direction
 set(hy, 'Position', posy + [-0.08 0.08 0]);  % Move closer in x direction
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_a_pca_trajectory.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
 %% legend of loss landscape
 % Legend
 colors = [68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119]/255;
@@ -127,6 +139,10 @@ subplot(6, 2, 12);
 plot(0, 0, 'marker', 'pentagram', 'color', 'k', 'MarkerSize', 12);  
 axis off;
 title('Initial point', 'Fontname', 'Times New Roman', 'Fontsize', 14);
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_a_legend.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% Jaccard similarity
 Realization_index = 1;
@@ -185,7 +201,11 @@ yticklabels(labels);
 % Set font and font size
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 14);
 
-%% Hessian spectrum 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_b_jaccard_matrix.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+%% Hessian spectrum
 % Select learning-rate index and realization index
 lr_index = 3;
 realization_index = 1;
@@ -233,6 +253,9 @@ legend box on;
 % Global axis font settings
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 22);
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_hessian_spectrum.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% Calculate basic metrics
 Weights_diff = squeeze(Weights_all(:, :, :, end, :) - Weights_all(:, :, :, 1, :));
@@ -335,9 +358,10 @@ cb.Label.Position = [0.5, 1.1, 0];
 
 % Axis Labels
 xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
 ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:5)
+yticks(1:num_bs);
 yticklabels(string(bs_list));
 set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
 
@@ -350,12 +374,15 @@ for i = 1:m
             % Draw gray rectangle (semi-transparent)
             patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
                   [i-0.5 i-0.5 i+0.5 i+0.5], ...
-                  [0.5 0.5 0.5], ...        % Gray RGB color
-                  'EdgeColor', 'none');     % No edge color
+                  [0.70 0.70 0.70], 'EdgeColor', 'none');
         end
     end
 end
 hold off;
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_c_freezing_time.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% ===== Panel (d): RMS endpoint radius r_theta =====
 figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
@@ -371,9 +398,10 @@ cb.Label.FontSize = 18;
 cb.Label.Rotation = 0;
 cb.Label.Position = [0.5, 1.1, 0];
 xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
 ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:1:5)
+yticks(1:num_bs);
 yticklabels(string(bs_list));
 set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
 
@@ -389,6 +417,10 @@ for i = 1:num_bs
     end
 end
 hold off;
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_d_rms_radius.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% ===== Panel (e): Mean final flatness <F> =====
 figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
@@ -404,9 +436,10 @@ cb.Label.FontSize = 18;
 cb.Label.Rotation = 0;
 cb.Label.Position = [0.5, 1.1, 0];
 xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
 ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:1:5)
+yticks(1:num_bs);
 yticklabels(string(bs_list));
 set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
 
@@ -422,6 +455,10 @@ for i = 1:num_bs
     end
 end
 hold off;
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_e_mean_flatness.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% ===== Panel (f): Max test accuracy =====
 figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
@@ -437,9 +474,10 @@ cb.Label.FontSize = 18;
 cb.Label.Rotation = 0;
 cb.Label.Position = [0.5, 1.1, 0];
 xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
 ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:1:5)
+yticks(1:num_bs);
 yticklabels(string(bs_list));
 set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
 
@@ -455,6 +493,10 @@ for i = 1:num_bs
     end
 end
 hold off;
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_f_max_test_acc.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% ===== Panel (g): Mean train loss =====
 lr = 2;  % lr=0.005
@@ -492,6 +534,10 @@ legend(h, 'Location', 'northeast',...
 legend box on
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 22, 'Yscale', 'log');
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_g_mean_train_loss.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
 %% Mean flatness
 lr = 2;  % lr=0.005
 max_iteration = 1000/(lr_list(lr));
@@ -526,6 +572,11 @@ legend(h, 'Location', 'northwest',...
 legend box on
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 22);
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_h_mean_flatness_time.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+fprintf('All Fig S5 panels saved to:\n  %s\n', save_dir);
 
 %% Define Jaccard similarity
 function similarity = jaccard_similarity(list1, list2)

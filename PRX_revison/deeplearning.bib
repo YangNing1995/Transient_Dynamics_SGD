@@ -757,6 +757,7 @@
   abstract = {As a data-driven science, genomics largely utilizes machine learning to capture dependencies in data and derive novel biological hypotheses. However, the ability to extract new insights from the exponentially increasing volume of genomics data requires more expressive machine learning models. By effectively leveraging large data sets, deep learning has transformed fields such as computer vision and natural language processing. Now, it is becoming the method of choice for many genomics modelling tasks, including predicting the impact of genetic variation on gene regulatory mechanisms such as DNA accessibility and splicing.},
   copyright = {2019 Springer Nature Limited},
   langid = {english},
+  annotation = {TLDR: Different deep learning techniques and how they can be applied to extract biologically relevant information from large, complex genomic data sets are described.},
   file = {E\:\\Zotero\\storage\\4943P5T3\\Eraslan 等。 - 2019 - Deep learning new computational modelling techniq.pdf;E\:\\Zotero\\storage\\89VSM4PE\\s41576-019-0122-6.html}
 }
 
@@ -1279,6 +1280,23 @@
   abstract = {The generalization abilities of deep neural networks have been a large interest in research in the field of machine learning. In this work, we study influential and recent works into understanding generalization. Some works are reproduced to allow for deeper insight or another perspective. Then we investigate the relationship between the Jacobian norm and the generalization gap, and we investigate the effectiveness of regularizing a network using the Jacobian norm. Finally, we introduce a novel metric for quantifying the smoothness of weights in the convolutional layers of a convolutional neural network.}
 }
 
+@article{gromovDeconstructingGeneralizationGap2023,
+  title = {Deconstructing the Generalization Gap},
+  author = {Gromov, Andrey},
+  year = 2023,
+  month = dec,
+  journal = {Nature Machine Intelligence},
+  volume = {5},
+  number = {12},
+  pages = {1340--1341},
+  issn = {2522-5839},
+  doi = {10.1038/s42256-023-00766-7},
+  urldate = {2026-01-11},
+  langid = {english},
+  annotation = {TLDR: The framework provides a way to interpret the effects of regularization schemes such as stochastic gradient descent and dropout on generalization --- and to improve upon these methods.},
+  file = {E:\Zotero\storage\G3H9GHCU\s42256-023-00766-7.pdf}
+}
+
 @article{gur-ariGradientDescentHappens2018,
   title = {Gradient {{Descent Happens}} in a {{Tiny Subspace}}},
   author = {{Gur-Ari}, Guy and Roberts, Daniel A. and Dyer, Ethan},
@@ -1639,6 +1657,7 @@
   abstract = {Machine learning is a branch of artificial intelligence (AI) involving computer programs that are able to improve their own performance through experience (training). The diverse applications of new `deep learning' approaches with neural networks are now expanding into the field of biology. But these applications to biological data require more scrutiny and caution to increase the standards of publishing and allow the AI revolution in biology to take off.},
   copyright = {2019 Springer Nature Limited},
   langid = {english},
+  annotation = {TLDR: The diverse applications of new `deep learning' approaches with neural networks are now expanding into the field of biology but these applications to biological data require more scrutiny and caution to increase the standards of publishing and allow the AI revolution in biology to take off.},
   file = {E\:\\Zotero\\storage\\TGDFGYZP\\Jones - 2019 - Setting the standards for machine learning in biol.pdf;E\:\\Zotero\\storage\\2FBMT7AA\\s41580-019-0176-5.html;E\:\\Zotero\\storage\\KX7FBJTJ\\s41580-019-0176-5.html}
 }
 
@@ -1656,6 +1675,7 @@
   urldate = {2025-02-24},
   abstract = {Abstract                            Proteins are essential to life, and understanding their structure can facilitate a mechanistic understanding of their function. Through an enormous experimental effort               1--4               , the structures of around 100,000 unique proteins have been determined               5               , but this represents a small fraction of the billions of known protein sequences               6,7               . Structural coverage is bottlenecked by the months to years of painstaking effort required to determine a single protein structure. Accurate computational approaches are needed to address this gap and to enable large-scale structural bioinformatics. Predicting the three-dimensional structure that a protein will adopt based solely on its amino acid sequence---the structure prediction component of the `protein folding problem'               8               ---has been an important open research problem for more than 50~years               9               . Despite recent progress               10--14               , existing methods fall far~short of atomic accuracy, especially when no homologous structure is available. Here we provide the first computational method that can regularly predict protein structures with atomic accuracy even in cases in which no similar structure is known. We validated an entirely redesigned version of our neural network-based model, AlphaFold, in the challenging 14th Critical Assessment of protein Structure Prediction (CASP14)               15               , demonstrating accuracy competitive with experimental structures in a majority of cases and greatly outperforming other methods. Underpinning the latest version of AlphaFold is a novel machine learning approach that incorporates physical and biological knowledge about protein structure, leveraging multi-sequence alignments, into the design of the deep learning algorithm.},
   langid = {english},
+  annotation = {TLDR: This work validated an entirely redesigned version of the neural network-based model, AlphaFold, in the challenging 14th Critical Assessment of protein Structure Prediction (CASP14)15, demonstrating accuracy competitive with experimental structures in a majority of cases and greatly outperforming other methods.},
   file = {E:\Zotero\storage\Q6HHXLNI\Jumper 等 - 2021 - Highly accurate protein structure prediction with AlphaFold.pdf}
 }
 
@@ -2630,6 +2650,24 @@
   file = {E:\Zotero\storage\Y7KM46PA\Nguyen 等 - 2019 - First Exit Time Analysis of Stochastic Gradient De.pdf}
 }
 
+@misc{olsenSGDSpectraTheory2026,
+  title = {From {{SGD}} to {{Spectra}}: {{A Theory}} of {{Neural Network Weight Dynamics}}},
+  shorttitle = {From {{SGD}} to {{Spectra}}},
+  author = {Olsen, Brian Richard and Fatehmanesh, Sam and Xiao, Frank and Kumarappan, Adarsh and Gajula, Anirudh},
+  year = 2026,
+  month = feb,
+  number = {arXiv:2507.12709},
+  eprint = {2507.12709},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2507.12709},
+  urldate = {2026-03-30},
+  abstract = {Deep neural networks have revolutionized machine learning, yet their training dynamics remain theoretically unclear-we develop a continuous-time, matrix-valued stochastic differential equation (SDE) framework that rigorously connects the microscopic dynamics of SGD to the macroscopic evolution of singular-value spectra in weight matrices. We derive exact SDEs showing that squared singular values follow Dyson Brownian motion with eigenvalue repulsion, and characterize stationary distributions as gamma-type densities with power-law tails, providing the first theoretical explanation for the empirically observed 'bulk+tail' spectral structure in trained networks. Through controlled experiments on transformer and MLP architectures, we validate our theoretical predictions and demonstrate quantitative agreement between SDE-based forecasts and observed spectral evolution, providing a rigorous foundation for understanding why deep learning works.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning},
+  file = {E\:\\Zotero\\storage\\4SMIPY5W\\Olsen 等 - 2026 - From SGD to Spectra A Theory of Neural Network Weight Dynamics.pdf;E\:\\Zotero\\storage\\VDEY5VFC\\2507.html}
+}
+
 @inproceedings{ongStudyCorrelationTrainable2023,
   title = {Study on the {{Correlation}} of {{Trainable Parameters}} and {{Hyperparameters}} with the {{Performance}} of {{Deep Learning Models}}},
   booktitle = {2023 4th {{International Conference}} on {{Artificial Intelligence}} and {{Data Sciences}} ({{AiDAS}})},
@@ -2658,6 +2696,23 @@
   langid = {english},
   pmid = {9348663},
   keywords = {Amino Acid Sequence,Computer Simulation,Models Molecular,Molecular Sequence Data,Polymers,Protein Folding,Sequence Homology Amino Acid,Thermodynamics}
+}
+
+@article{pacelliStatisticalMechanicsFramework2023,
+  title = {A Statistical Mechanics Framework for {{Bayesian}} Deep Neural Networks beyond the Infinite-Width Limit},
+  author = {Pacelli, R. and Ariosto, S. and Pastore, M. and Ginelli, F. and Gherardi, M. and Rotondo, P.},
+  year = 2023,
+  month = dec,
+  journal = {Nature Machine Intelligence},
+  volume = {5},
+  number = {12},
+  pages = {1497--1507},
+  issn = {2522-5839},
+  doi = {10.1038/s42256-023-00767-6},
+  urldate = {2026-01-11},
+  langid = {english},
+  annotation = {TLDR: Pacelli and colleagues go beyond this restrictive framework by computing the partition function and generalization properties of fully connected, nonlinear neural networks, both with one and with multiple hidden layers, for the practically more relevant scenario in which the above ratio is finite and arbitrary.},
+  file = {E:\Zotero\storage\D9XX9Z4T\Pacelli 等 - 2023 - A statistical mechanics framework for Bayesian deep neural networks beyond the infinite-width limit.pdf}
 }
 
 @misc{papyanFullSpectrumDeepnet2019,
@@ -2915,6 +2970,7 @@
   urldate = {2024-12-20},
   copyright = {https://www.elsevier.com/tdm/userlicense/1.0/},
   langid = {english},
+  annotation = {TLDR: A model in which the epigenome can modulate cellular plasticity in development and disease by regulating the effects of noise is proposed, which may help to explain the observation that the variability of DNA methylation and gene expression are increased in cancer, thus contributing to tumor cell heterogeneity.},
   file = {E:\Zotero\storage\9FFU5NQ5\Pujadas和Feinberg - 2012 - Regulated Noise in the Epigenetic Landscape of Development and Disease.pdf}
 }
 
@@ -3240,6 +3296,23 @@
   abstract = {The gradient noise (GN) in the stochastic gradient descent (SGD) algorithm is often considered to be Gaussian in the large data regime by assuming that the classical central limit theorem (CLT) kicks in. This assumption is often made for mathematical convenience, since it enables SGD to be analyzed as a stochastic differential equation (SDE) driven by a Brownian motion. We argue that the Gaussianity assumption might fail to hold in deep learning settings and hence render the Brownian motion-based analyses inappropriate. Inspired by non-Gaussian natural phenomena, we consider the GN in a more general context and invoke the generalized CLT (GCLT), which suggests that the GN converges to a heavy-tailed \$\textbackslash alpha\$-stable random variable. Accordingly, we propose to analyze SGD as an SDE driven by a L\'evy motion. Such SDEs can incur `jumps', which force the SDE transition from narrow minima to wider minima, as proven by existing metastability theory. To validate the \$\textbackslash alpha\$-stable assumption, we conduct experiments on common deep learning scenarios and show that in all settings, the GN is highly non-Gaussian and admits heavy-tails. We investigate the tail behavior in varying network architectures and sizes, loss functions, and datasets. Our results open up a different perspective and shed more light on the belief that SGD prefers wide minima.},
   langid = {english},
   file = {E:\Zotero\storage\6AKVKDER\Simsekli 等 - 2019 - A Tail-Index Analysis of Stochastic Gradient Noise.pdf}
+}
+
+@misc{singhAnalyticInsightsStructure2021,
+  title = {Analytic {{Insights}} into {{Structure}} and {{Rank}} of {{Neural Network Hessian Maps}}},
+  author = {Singh, Sidak Pal and Bachmann, Gregor and Hofmann, Thomas},
+  year = 2021,
+  month = jul,
+  number = {arXiv:2106.16225},
+  eprint = {2106.16225},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2106.16225},
+  urldate = {2026-03-17},
+  abstract = {The Hessian of a neural network captures parameter interactions through second-order derivatives of the loss. It is a fundamental object of study, closely tied to various problems in deep learning, including model design, optimization, and generalization. Most prior work has been empirical, typically focusing on low-rank approximations and heuristics that are blind to the network structure. In contrast, we develop theoretical tools to analyze the range of the Hessian map, providing us with a precise understanding of its rank deficiency as well as the structural reasons behind it. This yields exact formulas and tight upper bounds for the Hessian rank of deep linear networks, allowing for an elegant interpretation in terms of rank deficiency. Moreover, we demonstrate that our bounds remain faithful as an estimate of the numerical Hessian rank, for a larger class of models such as rectified and hyperbolic tangent networks. Further, we also investigate the implications of model architecture (e.g.\textasciitilde width, depth, bias) on the rank deficiency. Overall, our work provides novel insights into the source and extent of redundancy in overparameterized networks.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning,Computer Science - Neural and Evolutionary Computing,Mathematics - Statistics Theory,Statistics - Machine Learning},
+  file = {E\:\\Zotero\\storage\\G6LU74II\\Singh 等 - 2021 - Analytic Insights into Structure and Rank of Neural Network Hessian Maps.pdf;E\:\\Zotero\\storage\\GU85ZW8F\\2106.html}
 }
 
 @misc{singhPhenomenologyDoubleDescent2022,
@@ -3651,6 +3724,24 @@
   archiveprefix = {arXiv},
   keywords = {Computer Science - Machine Learning,Statistics - Machine Learning},
   file = {E\:\\Zotero\\storage\\KQ6ZGB8V\\Wu et al_2021_Direction Matters.pdf;E\:\\Zotero\\storage\\BQKJXWTN\\2011.html}
+}
+
+@misc{wuDissectingHessianUnderstanding2022,
+  title = {Dissecting {{Hessian}}: {{Understanding Common Structure}} of {{Hessian}} in {{Neural Networks}}},
+  shorttitle = {Dissecting {{Hessian}}},
+  author = {Wu, Yikai and Zhu, Xingyu and Wu, Chenwei and Wang, Annie and Ge, Rong},
+  year = 2022,
+  month = oct,
+  number = {arXiv:2010.04261},
+  eprint = {2010.04261},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2010.04261},
+  urldate = {2026-03-17},
+  abstract = {Hessian captures important properties of the deep neural network loss landscape. Previous works have observed low rank structure in the Hessians of neural networks. In this paper, we propose a decoupling conjecture that decomposes the layer-wise Hessians of a network as the Kronecker product of two smaller matrices. We can analyze the properties of these smaller matrices and prove the structure of top eigenspace random 2-layer networks. The decoupling conjecture has several other interesting implications - top eigenspaces for different models have surprisingly high overlap, and top eigenvectors form low rank matrices when they are reshaped into the same shape as the corresponding weight matrix. All of these can be verified empirically for deeper networks. Finally, we use the structure of layer-wise Hessian to get better explicit generalization bounds for neural networks.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning,Computer Science - Neural and Evolutionary Computing,Statistics - Machine Learning},
+  file = {E\:\\Zotero\\storage\\W5LSZ6KG\\Wu 等 - 2022 - Dissecting Hessian Understanding Common Structure of Hessian in Neural Networks.pdf;E\:\\Zotero\\storage\\RDEEMA8D\\2010.html}
 }
 
 @inproceedings{wuHowSGDSelects2018,
@@ -4160,6 +4251,23 @@
   archiveprefix = {arXiv},
   keywords = {Computer Science - Machine Learning},
   file = {E\:\\Zotero\\storage\\8NCDNS2X\\Zhang 等。 - 2021 - Loss Landscape Dependent Self-Adjusting Learning R.pdf;E\:\\Zotero\\storage\\EDMFLL6N\\2112.html}
+}
+
+@misc{zhangSuperlinearRelationshipSGD2026,
+  title = {On the {{Superlinear Relationship}} between {{SGD Noise Covariance}} and {{Loss Landscape Curvature}}},
+  author = {Zhang, Yikuan and Yang, Ning and Tu, Yuhai},
+  year = 2026,
+  month = feb,
+  number = {arXiv:2602.05600},
+  eprint = {2602.05600},
+  primaryclass = {cs.LG},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2602.05600},
+  urldate = {2026-06-08},
+  abstract = {Stochastic Gradient Descent (SGD) introduces anisotropic noise that is correlated with the local curvature of the loss landscape, thereby biasing optimization toward flat minima. Prior work often assumes an equivalence between the Fisher Information Matrix and the Hessian for negative log-likelihood losses, leading to the claim that the SGD noise covariance \$\textbackslash mathbf\textbraceleft C\textbraceright\$ is proportional to the Hessian \$\textbackslash mathbf\textbraceleft H\textbraceright\$. We show that this assumption holds only under restrictive conditions that are typically violated in deep neural networks. Using the recently discovered Activity--Weight Duality, we find a more general relationship agnostic to the specific loss formulation, showing that \$\textbackslash mathbf\textbraceleft C\textbraceright{} \textbackslash propto \textbackslash mathbb\textbraceleft E\textbraceright\_p[\textbackslash mathbf\textbraceleft h\textbraceright\_p\textasciicircum 2]\$, where \$\textbackslash mathbf\textbraceleft h\textbraceright\_p\$ denotes the per-sample Hessian with \$\textbackslash mathbf\textbraceleft H\textbraceright{} = \textbackslash mathbb\textbraceleft E\textbraceright\_p[\textbackslash mathbf\textbraceleft h\textbraceright\_p]\$. As a consequence, \$\textbackslash mathbf\textbraceleft C\textbraceright\$ and \$\textbackslash mathbf\textbraceleft H\textbraceright\$ commute approximately rather than coincide exactly, and their diagonal elements follow an approximate power-law relation \$C\_\textbraceleft ii\textbraceright{} \textbackslash propto H\_\textbraceleft ii\textbraceright\textasciicircum{$\gamma\$$} with a theoretically bounded exponent \$1 \textbackslash leq {$\gamma\backslash$}leq 2\$, determined by per-sample Hessian spectra. Experiments across datasets, architectures, and loss functions validate these bounds, providing a unified characterization of the noise-curvature relationship in deep learning.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning},
+  file = {E\:\\Zotero\\storage\\XI65UYSH\\Zhang 等 - 2026 - On the Superlinear Relationship between SGD Noise Covariance and Loss Landscape Curvature.pdf;E\:\\Zotero\\storage\\SGELVG58\\2602.html}
 }
 
 @article{zhangUnderstandingDeepLearning2017,

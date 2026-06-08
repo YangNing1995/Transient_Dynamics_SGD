@@ -116,7 +116,7 @@ Before the freezing time $t_f$, the continuation endpoints become progressively 
 \end{figure*}
 
 
-\subsection{Strong SGD noise delays the freezing transition}
+\subsection{Stronger SGD noise delays the freezing transition}
 Having identified the freezing time along a single trajectory, we next examined how it depends on the strength of SGD noise. In mini-batch SGD, stochasticity comes from finite-batch sampling, with an effective strength controlled by the learning rate $\eta$ and batch size $B$: larger $\eta$ or smaller $B$ gives stronger noise, with an effective scale $\eta/B$ \cite{jastrzebskiThreeFactorsInfluencing2018}. To test this dependence, we trained networks over a broad grid of $(\eta,B)$, with learning rates from $\eta=0.002$ to $0.1$ and batch sizes from $B=10$ to $500$. For each setting, we performed 20 independent runs starting from the same initialization (see Supplemental Material for details). We measured the freezing time using matched continuation, where deterministic continuations used the same learning rate as the corresponding SGD trajectory. Across stochastic settings with $B<1000$, the normalized freezing time $\eta \langle t_f \rangle_n$ increases with the effective noise scale $\eta/B$ [Fig.~\ref{fig:freezing_control}(a)], where $\langle\cdot\rangle_n$ denotes an average over independent repeats and $\eta$ rescales iteration number to optimization time. Thus, stronger SGD noise delays freezing and extends the transient period during which the trajectory can still move between competing valleys.
 
 This delayed freezing also affects the set of final solutions reached across repeats. For each hyperparameter setting, we measured the root-mean-square (RMS) radius of the converged endpoints,

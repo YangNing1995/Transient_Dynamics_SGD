@@ -1,258 +1,590 @@
-% Figure 1 for the PRX revision: continuation readout of transient freezing.
-% The script builds one four-panel figure from the original continuation data:
-% A: PCA visualization of the SGD trajectory and deterministic continuations.
-% B: endpoint test loss and Hessian flatness versus continuation time.
-% C: pairwise endpoint Jaccard similarity showing the late stable block.
-% D: final-basin stability score and operational definition of t_f.
+% Results of continuing training with GD at different moments along a single SGD trajectory
+% This version uses the original Hessian flatness definition from
+% Fig4_4S_escaping_behavior.m.
+% =========================================================================
 
-clear; close all; clc;
-
-%% Paths and options
-script_dir = fileparts(mfilename('fullpath'));
-revision_dir = fileparts(script_dir);
-output_dir = fullfile(revision_dir, 'Figures_revision', 'Fig1_transient_freezing');
-if ~exist(output_dir, 'dir')
-    mkdir(output_dir);
-end
-addpath(script_dir);
-
-train_data_root = 'E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Data\Train_with_different_hyperparas\';
-continue_data_root = 'E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Data\Continue_training\';
-
+%% Load original SGD trajectory
+Data_dir = 'E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Data\Train_with_different_hyperparas\';
 bs = 50;
 lr = 0.05;
 realization_num = 2;
+
+% Load metrics and Hessian spectra for the specific run.
+load(strcat(Data_dir, 'bs', num2str(bs), '_lr', num2str(lr), '/save_metrics_repeat', num2str(realization_num), '.mat'));
+load(strcat(Data_dir, 'bs', num2str(bs), '_lr', num2str(lr), '/save_hessian_repeat', num2str(realization_num), '.mat'));
+
+% Process iterations
+max_iteration = 100/lr;
+iterations_list = linspace(0, max_iteration, 101);
+Positions = find(ismember(save_iterations, iterations_list));
+
+% Extract base metrics
+Train_loss_base = train_loss(1, Positions);
+Test_loss_base = test_loss(1, Positions);
+Train_acc_base = train_accuracy(1, Positions);
+Test_acc_base = test_accuracy(1, Positions);
+Wrong_indices_base = wrong_indices(1, Positions);
+Weights_base = weight_all(Positions, :);
+Hessian_base = Hessian';
+
+%% Load various GD trajectories 
+% (Start points at 0, 20, 40...1000 Iterations, 51 points total)
+% (Each trajectory samples 101 time points from 0:20:2000)
+Data_dir = strcat('E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Data\Continue_training\', ...
+    'bs', num2str(bs), '_lr', num2str(lr), '_repeat', num2str(realization_num), '_ct/');
+
 num_solutions = 51;
 num_iterations = 101;
 continue_iterations_list = linspace(0, 1000, num_solutions);
-base_iterations_list = linspace(0, 100/lr, num_iterations);
-continuation_stride = continue_iterations_list(2) - continue_iterations_list(1);
 
-% Similarity threshold used only to visualize the basin-stability readout.
-basin_similarity_threshold = 0.95;
-
-%% Load original SGD trajectory
-base_dir = fullfile(train_data_root, ['bs', num2str(bs), '_lr', num2str(lr)]);
-base_metrics = load(fullfile(base_dir, ['save_metrics_repeat', num2str(realization_num), '.mat']));
-base_hessian = load(fullfile(base_dir, ['save_hessian_repeat', num2str(realization_num), '.mat']));
-positions = find(ismember(base_metrics.save_iterations, base_iterations_list));
-
-Train_loss_base = base_metrics.train_loss(1, positions);
-Test_loss_base = base_metrics.test_loss(1, positions);
-Weights_base = base_metrics.weight_all(positions, :);
-Hessian_base = base_hessian.Hessian';
-
-%% Load continuation trajectories
-continue_dir = fullfile(continue_data_root, ['bs', num2str(bs), '_lr', num2str(lr), '_repeat', num2str(realization_num), '_ct']);
+% Pre-allocate arrays
 Train_loss_all = zeros(num_solutions, num_iterations);
 Test_loss_all = zeros(num_solutions, num_iterations);
+Train_acc_all = zeros(num_solutions, num_iterations);
 Test_acc_all = zeros(num_solutions, num_iterations);
 Wrong_indices_all = cell(num_solutions, num_iterations);
-Weights_all = zeros(num_solutions, num_iterations, size(Weights_base, 2));
-Hessian_all = zeros(num_solutions, num_iterations, size(Hessian_base, 2));
+Weights_all = zeros(num_solutions, num_iterations, 2500);
+Hessian_all = zeros(num_solutions, num_iterations, 2500);
 
+% Load data loop
 for i = 1:num_solutions
-    tc = continue_iterations_list(i);
-    metrics = load(fullfile(continue_dir, ['save_metrics_ct', num2str(tc), '.mat']));
-    hessian_data = load(fullfile(continue_dir, ['save_hessian_ct', num2str(tc), '.mat']));
-    Train_loss_all(i, :) = metrics.train_loss;
-    Test_loss_all(i, :) = metrics.test_loss;
-    Test_acc_all(i, :) = metrics.test_accuracy;
-    Weights_all(i, :, :) = metrics.weight_all;
-    Hessian_all(i, :, :) = hessian_data.Hessian';
-
-    if iscell(metrics.wrong_indices)
-        Wrong_indices_all(i, :) = metrics.wrong_indices;
+    load(strcat(Data_dir, 'save_metrics_ct', num2str(20*(i-1)), '.mat'));
+    load(strcat(Data_dir, 'save_hessian_ct', num2str(20*(i-1)), '.mat'));
+    
+    Train_loss_all(i, :) = train_loss;
+    Test_loss_all(i, :) = test_loss;
+    Train_acc_all(i, :) = train_accuracy;
+    Test_acc_all(i, :) = test_accuracy;
+    Weights_all(i, :, :) = weight_all;
+    Hessian_all(i, :, :) = Hessian';
+    
+    if iscell(wrong_indices)
+        Wrong_indices_all(i, :) = wrong_indices;
     else
-        Wrong_indices_all(i, :) = num2cell(metrics.wrong_indices, 2)';
+        Wrong_indices_all(i, :) = num2cell(wrong_indices, 2)';
     end
 end
 
-% Match the original Fig. 4 definition: inverse geometric mean of the top 10
-% Hessian eigenvalues. Larger F corresponds to flatter local geometry.
+% Calculate flatness: inverse geometric mean of the top 10 Hessian eigenvalues.
 Flatness_base = prod(Hessian_base(:, 1:10), 2).^(-1/10);
 Flatness_all = prod(Hessian_all(:, :, 1:10), 3).^(-1/10);
 
-%% Extract endpoints at the common global time t = 2000
+% Extract end-point metrics for each solution
 Flatness_end = zeros(num_solutions, 1);
-Test_loss_end = zeros(num_solutions, 1);
 Test_acc_end = zeros(num_solutions, 1);
-Wrong_indices_end = cell(num_solutions, 1);
+Test_loss_end = zeros(num_solutions, 1);
 
 for i = 1:num_solutions
-    endpoint_idx = num_iterations - i + 1;
-    Flatness_end(i) = Flatness_all(i, endpoint_idx);
-    Test_loss_end(i) = Test_loss_all(i, endpoint_idx);
-    Test_acc_end(i) = Test_acc_all(i, endpoint_idx);
-    Wrong_indices_end{i} = Wrong_indices_all{i, endpoint_idx};
+    Flatness_end(i, 1) = Flatness_all(i, end-i+1);
+    Test_acc_end(i, 1) = Test_acc_all(i, end-i+1);
+    Test_loss_end(i, 1) = Test_loss_all(i, end-i+1);
 end
 
-%% Pairwise endpoint similarity and continuation-based freezing time
-similarity_matrix = zeros(num_solutions, num_solutions);
-for i = 1:num_solutions
-    for j = 1:num_solutions
-        similarity_matrix(i, j) = jaccard_similarity(Wrong_indices_end{i}, Wrong_indices_end{j});
-    end
+Flatness_values = [Flatness_base(:); Flatness_all(:)];
+Flatness_values = Flatness_values(isfinite(Flatness_values));
+Flatness_ylim = [floor(min(Flatness_values)*10)/10, ceil(max(Flatness_values)*10)/10];
+Flatness_end_ylim = [floor(min(Flatness_end)*10)/10, ceil(max(Flatness_end)*10)/10];
+
+fig1_export_dir = 'E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Transient_Dynamics_SGD\PRX_revison\Figures_revision\Fig1_transient_freezing';
+fig1_export_resolution = 600;
+fig1_axis_font = 24;
+fig1_label_font = fig1_axis_font;
+if ~exist(fig1_export_dir, 'dir')
+    mkdir(fig1_export_dir);
 end
 
-final_basin_similarity = similarity_matrix(:, end);
-stable_tail = false(num_solutions, 1);
-for i = 1:num_solutions
-    stable_tail(i) = all(final_basin_similarity(i:end) >= basin_similarity_threshold);
-end
-freezing_index = find(stable_tail, 1, 'first');
-if isempty(freezing_index)
-    warning('No stable tail found at threshold %.2f; using the historical t_f = 440.', basin_similarity_threshold);
-    freezing_index = round(440 / continuation_stride) + 1;
-end
-t_freeze = continue_iterations_list(freezing_index);
+%% A. Loss landscape & weight dynamics
+solution_list = [1, 2, 3, 5, 9, 17, 33];
+Weights_all_reshaped = reshape(Weights_all, [num_solutions*num_iterations, 2500]);
 
-%% PCA projection for trajectory visualization
-selected_tc = [0, 20, 40, 80, 160, 320, t_freeze, 640, 1000];
-selected_tc = unique(selected_tc(selected_tc >= 0 & selected_tc <= 1000), 'stable');
-solution_list = round(selected_tc / continuation_stride) + 1;
-solution_list = solution_list(solution_list >= 1 & solution_list <= num_solutions);
-
-Weights_all_reshaped = reshape(Weights_all, [num_solutions * num_iterations, size(Weights_base, 2)]);
-[coeff, score, ~, ~, ~, mu] = pca(Weights_all_reshaped);
-Weights_pca = reshape(score, [num_solutions, num_iterations, size(Weights_base, 2)]);
+% PCA Projection ('score' is the projection in the PCA coordinate system)
+[coeff, score, latent, ~, ~, mu] = pca(Weights_all_reshaped); 
+Weights_pca = reshape(score, [num_solutions, num_iterations, 2500]);
 Weights_base_pca = (Weights_base - mu) * coeff;
 
-%% Figure style
-blue = [68, 119, 179] / 255;
-orange = [221, 132, 82] / 255;
-red = [204, 51, 68] / 255;
-gray = [0.45, 0.45, 0.45];
-branch_colors = turbo(max(numel(solution_list), 3));
+% Color definition
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
 
-fig = figure('Units', 'points', 'PaperUnits', 'points', ...
-    'Position', [80, 60, 980, 760], 'Color', 'w');
-tiled = tiledlayout(fig, 2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
-axis_font = 11;
-title_font = 12;
-label_font = 12;
+% 2D + Loss Visualization
+fig_A = figure('unit','points','PaperUnits','points', 'position', [100 100 600 600]);
+landscape_solution_handles = gobjects(length(solution_list), 1);
+landscape_solution_labels = cell(length(solution_list), 1);
+plot3(Weights_base_pca(:, 1), Weights_base_pca(:, 2), Train_loss_base, '-', 'Color', [0.5 0.5 0.5], 'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD reference');
+hold on 
+for i = 1 : length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    landscape_solution_handles(i) = plot3(Weights_pca(sol, :, 1), Weights_pca(sol, :, 2), Train_loss_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, 'DisplayName', legend_label);
+    landscape_solution_labels{i} = legend_label;
+end
+% Mark start points of each continuation on SGD curve
+for i = 1:length(solution_list)
+    sol = solution_list(i);
+    scatter3(Weights_base_pca(sol, 1), Weights_base_pca(sol, 2), Train_loss_base(sol), ...
+        150, landscape_solution_handles(i).Color, 'x', 'LineWidth', 2.5, 'HandleVisibility', 'off');
+end
 
-%% A. Continuation protocol in PCA-loss space
-axA = nexttile(tiled, 1);
-h_sgd = plot3(axA, Weights_base_pca(:, 1), Weights_base_pca(:, 2), Train_loss_base, '-', ...
-    'Color', blue, 'LineWidth', 2.2, 'DisplayName', 'SGD');
-hold(axA, 'on');
-h_cont = gobjects(1, 1);
-for k = 1:numel(solution_list)
-    sol = solution_list(k);
-    h_branch = plot3(axA, squeeze(Weights_pca(sol, :, 1)), squeeze(Weights_pca(sol, :, 2)), Train_loss_all(sol, :), ...
-        '-o', 'Color', branch_colors(k, :), 'LineWidth', 0.8, 'MarkerSize', 2.8, ...
-        'MarkerFaceColor', branch_colors(k, :), 'MarkerEdgeColor', branch_colors(k, :));
-    if k == 1
-        h_cont = h_branch;
+% Settings
+grid on
+box on
+view(-148, 21)
+hx = xlabel('$\theta_\mathrm{pc1}$', 'Interpreter', 'latex','Units','normalized', 'FontSize', fig1_label_font);
+hy = ylabel('$\theta_\mathrm{pc2}$', 'Interpreter', 'latex','Units','normalized', 'FontSize', fig1_label_font);
+zlabel('$\mathcal{L}_\mathrm{train}$', 'Interpreter', 'latex', 'FontSize', fig1_label_font)
+zlim([min(Train_loss_all, [], 'all'), max(Train_loss_all, [], 'all')])
+set(gca, 'Fontname', 'Times New Roman', 'Zscale', 'log', 'Fontsize', fig1_axis_font);
+
+% Adjust label positions
+set(hx, 'Position', [ 0.1956    0.0083         0],'Units','normalized');   % Move closer in y direction
+set(hy, 'Position', [  0.8044    -0.01         0],'Units','normalized');   % Move closer in x direction
+save_fig1_png(fig_A, fullfile(fig1_export_dir, 'Fig1A_loss_landscape.png'), fig1_export_resolution);
+
+% Standalone two-row legend for panel A
+fig_A_legend = figure('unit','points','PaperUnits','points', 'position', [100 100 600 120]);
+legend_axes = axes('Position', [0 0 1 1], 'Visible', 'off');
+hold(legend_axes, 'on')
+legend_handles = gobjects(10, 1);
+legend_labels = cell(10, 1);
+
+legend_handles(1) = plot(legend_axes, NaN, NaN, '-', 'Color', [0.5 0.5 0.5], 'LineWidth', 2, 'MarkerSize', 10);
+legend_labels{1} = 'SGD reference';
+for i = 1:4
+    legend_handles(i + 1) = plot(legend_axes, NaN, NaN, ...
+        'LineStyle', landscape_solution_handles(i).LineStyle, ...
+        'Marker', landscape_solution_handles(i).Marker, ...
+        'color', landscape_solution_handles(i).Color, ...
+        'LineWidth', landscape_solution_handles(i).LineWidth, ...
+        'MarkerSize', landscape_solution_handles(i).MarkerSize);
+    legend_labels{i + 1} = landscape_solution_labels{i};
+end
+legend_handles(6) = plot(legend_axes, NaN, NaN, 'x', 'Color', 'k', 'MarkerSize', 15, 'LineWidth', 3, 'LineStyle', 'none');
+legend_labels{6} = 'Continuation point';
+for i = 5:length(solution_list)
+    legend_handles(i + 2) = plot(legend_axes, NaN, NaN, ...
+        'LineStyle', landscape_solution_handles(i).LineStyle, ...
+        'Marker', landscape_solution_handles(i).Marker, ...
+        'color', landscape_solution_handles(i).Color, ...
+        'LineWidth', landscape_solution_handles(i).LineWidth, ...
+        'MarkerSize', landscape_solution_handles(i).MarkerSize);
+    legend_labels{i + 2} = landscape_solution_labels{i};
+end
+legend_handles(10) = plot(legend_axes, NaN, NaN, 'LineStyle', 'none', 'Marker', 'none');
+legend_labels{10} = '';
+lgd = legend(legend_axes, legend_handles, legend_labels, ...
+    'Fontname', 'Times New Roman', 'Fontsize', 16, 'location', 'north', ...
+    'Orientation', 'horizontal', 'NumColumns', 5, ...
+    'Interpreter', 'latex');
+set(lgd, 'Box', 'on');
+save_fig1_png(fig_A_legend, fullfile(fig1_export_dir, 'Fig1A_legend.png'), fig1_export_resolution);
+
+%% Train loss
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+semilogy(iterations_list, Train_loss_base,'-', 'color', color_seq(2,:), 'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD reference');
+hold on
+for i = 1 : length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    semilogy(iterations_list + continue_iterations_list(sol), Train_loss_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, 'DisplayName', legend_label)
+end
+legend('Fontname', 'Times New Roman', 'Fontsize', 18, 'location', 'best', 'Orientation','vertical', 'Interpreter', 'latex')
+xlim([0 2000])
+xlabel('Iteration $t$', 'Interpreter', 'latex')
+ylabel('$\mathcal{L}_\mathrm{train}$', 'Interpreter', 'latex')
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+
+%% B. Test loss
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+fig_B = figure('unit','points','PaperUnits','points', 'position', [100 100 600 450]);
+semilogy(iterations_list, Test_loss_base,'-', 'Color', [0.5 0.5 0.5], 'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD reference');
+hold on
+for i = 1 : length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    semilogy(iterations_list + continue_iterations_list(sol), Test_loss_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, 'DisplayName', legend_label)
+end
+% Mark start points of each continuation on SGD curve
+for i = 1:length(solution_list)
+    sol = solution_list(i);
+    scatter(continue_iterations_list(sol), Test_loss_base(sol), 150, ...
+        landscape_solution_handles(i).Color, 'x', 'LineWidth', 2.5, 'HandleVisibility', 'off');
+end
+% legend('Fontname', 'Times New Roman', 'Fontsize', 18, 'location', 'best', 'Orientation','vertical', 'Interpreter', 'latex')
+xlim([0 1500])
+xlabel('Iteration $t$', 'Interpreter', 'latex', 'FontSize', fig1_label_font)
+ylabel('$\mathcal{L}_\mathrm{test}$', 'Interpreter', 'latex', 'FontSize', fig1_label_font)
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', fig1_axis_font);
+save_fig1_png(fig_B, fullfile(fig1_export_dir, 'Fig1B_test_loss.png'), fig1_export_resolution);
+
+%% Train accuracy
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+plot(iterations_list, Train_acc_base,'-', 'color', color_seq(2,:), 'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD reference');
+hold on
+for i = 1 : length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    plot(iterations_list + continue_iterations_list(sol), Train_acc_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, 'DisplayName', legend_label)
+end
+legend('Fontname', 'Times New Roman', 'Fontsize', 18, 'location', 'best', 'Orientation','vertical', 'Interpreter', 'latex')
+xlim([0 2000])
+xlabel('Iteration $t$', 'Interpreter', 'latex')
+ylabel('$Acc_\mathrm{train}$', 'Interpreter', 'latex')
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+
+%% Test accuracy
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+plot(iterations_list, Test_acc_base,'-', 'color', color_seq(2,:), 'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD reference');
+hold on
+for i = 1 : length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    plot(iterations_list + continue_iterations_list(sol), Test_acc_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, 'DisplayName', legend_label)
+end
+legend('Fontname', 'Times New Roman', 'Fontsize', 18, 'location', 'best', 'Orientation','vertical', 'Interpreter', 'latex')
+xlim([0 2000])
+ylim([0.8 0.95])
+xlabel('Iteration $t$', 'Interpreter', 'latex')
+ylabel('$Acc_\mathrm{test}$', 'Interpreter', 'latex')
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+
+%% Test loss new (Combined figure)
+% Combined figure: Main plot + inset subplot
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; ...
+              204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+
+% -------- Main plot: Test loss trajectory --------
+semilogy(iterations_list, Test_loss_base, '-', 'color', color_seq(2,:), ...
+    'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD trajectory');
+hold on
+for i = 1:length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    semilogy(iterations_list + continue_iterations_list(sol), ...
+        Test_loss_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, ...
+        'DisplayName', legend_label)
+end
+
+xlabel('Iteration $t$', 'Interpreter', 'latex')
+ylabel('$\mathcal{L}_\mathrm{test}$', 'Interpreter', 'latex')
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlim([0 2000])
+yticks([0.5 1 2])
+
+% -------- Inset plot: Final test loss vs t_c --------
+% Position: [x, y, width, height]
+axes('Position', [0.45, 0.45, 0.45, 0.45]); 
+plot(continue_iterations_list(1:2:end), Test_loss_end(1:2:end), ...
+    '-o', 'LineWidth', 2, 'MarkerSize', 10, 'Color', color_seq(2,:));
+grid on
+axis square
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlabel('$t_c$', 'Interpreter', 'latex')
+ylabel('$\mathcal{L}_\mathrm{test}$', 'Interpreter', 'latex')
+xlim([0 1000])
+yticks([0.44 0.46 0.48])
+box on  % Add border to inset
+
+%% C. Flatness
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+fig_C = figure('unit','points','PaperUnits','points', 'position', [100 100 600 450]);
+plot(iterations_list, Flatness_base,'-', 'Color', [0.5 0.5 0.5], 'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD trajectory');
+hold on
+for i = 1 : length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    plot(iterations_list + continue_iterations_list(sol), Flatness_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, 'DisplayName', legend_label)
+end
+% Mark start points of each continuation on SGD curve
+for i = 1:length(solution_list)
+    sol = solution_list(i);
+    scatter(continue_iterations_list(sol), Flatness_base(sol), 150, ...
+        landscape_solution_handles(i).Color, 'x', 'LineWidth', 2.5, 'HandleVisibility', 'off');
+end
+% legend('Fontname', 'Times New Roman', 'Fontsize', 18, 'location', 'best', 'Orientation','vertical', 'Interpreter', 'latex')
+xlim([0 1500])
+xlabel('Iteration $t$', 'Interpreter', 'latex', 'FontSize', fig1_label_font)
+ylabel('Flatness $F$', 'Interpreter', 'latex', 'FontSize', fig1_label_font)
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', fig1_axis_font);
+save_fig1_png(fig_C, fullfile(fig1_export_dir, 'Fig1C_flatness.png'), fig1_export_resolution);
+
+%% Flatness new (Combined figure)
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; ...
+              204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+
+% -------- Main plot: flatness trajectory --------
+plot(iterations_list,  Flatness_base, '-', 'color', color_seq(2,:), ...
+    'LineWidth', 2, 'MarkerSize', 10, 'DisplayName', 'SGD trajectory');
+hold on
+for i = 1:length(solution_list)
+    sol = solution_list(i);
+    legend_label = strcat('$t_c=', int2str(continue_iterations_list(sol)),'$');
+    plot(iterations_list + continue_iterations_list(sol), ...
+        Flatness_all(sol, :), '-o', 'LineWidth', 0.5, 'MarkerSize', 5, ...
+        'DisplayName', legend_label)
+end
+
+xlabel('Iteration $t$', 'Interpreter', 'latex')
+ylabel('Flatness $F$', 'Interpreter', 'latex')
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlim([0 2000])
+ylim(Flatness_ylim)
+
+% -------- Inset plot: final flatness vs t_c --------
+axes('Position', [0.18, 0.45, 0.45, 0.45]); % [x, y, width, height]
+plot(continue_iterations_list(1:2:end), Flatness_end(1:2:end), ...
+    '-o', 'LineWidth', 2, 'MarkerSize', 10, 'Color', color_seq(2,:));
+grid on
+axis square
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlabel('$t_c$', 'Interpreter', 'latex')
+ylabel('Flatness $F$', 'Interpreter', 'latex')
+xlim([0 1000])
+ylim(Flatness_end_ylim)
+box on  % Add border to inset
+
+%% Flatness vs Test loss/accuracy (Linear Regression)
+% Calculate metrics at iteration 2000 for all solutions
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+Flatness_end = zeros(num_solutions, 1);
+Train_acc_end = zeros(num_solutions, 1);
+Train_loss_end = zeros(num_solutions, 1);
+Test_acc_end = zeros(num_solutions, 1);
+Test_loss_end = zeros(num_solutions, 1);
+
+for i = 1:num_solutions
+    Flatness_end(i, 1) = Flatness_all(i, end-i+1);
+    Train_acc_end(i, 1) = Train_acc_all(i, end-i+1);
+    Train_loss_end(i, 1) = Train_loss_all(i, end-i+1);
+    Test_acc_end(i, 1) = Test_acc_all(i, end-i+1);
+    Test_loss_end(i, 1) = Test_loss_all(i, end-i+1);
+end
+
+% Plot: flatness vs test loss
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 600])
+scatter(Test_loss_end, Flatness_end, 150, 'o', 'MarkerEdgeColor','k', 'MarkerFaceColor', color_seq(3, :), 'LineWidth', 1.0);
+hold on;
+model = fitlm(Test_loss_end, Flatness_end, 'linear');
+h = plot(Test_loss_end, predict(model), 'color', color_seq(6, :), 'LineWidth', 2);
+r2 = model.Rsquared.Ordinary;
+legend_text = sprintf('Fitted line : $R^2 = %.2f$', r2);
+legend(h, legend_text, 'Location', 'northeast', 'FontSize', 30, 'Interpreter', 'latex');
+legend box off
+xlabel('$\mathcal{L}_\mathrm{test}$', 'Interpreter', 'latex')
+ylabel('Flatness $F$', 'Interpreter', 'latex')
+ylim(Flatness_end_ylim)
+box on
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 30);
+axis square
+
+% Plot: flatness vs test accuracy
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 600])
+scatter(Test_acc_end, Flatness_end, 150, 'o', 'MarkerEdgeColor','k', 'MarkerFaceColor', color_seq(3, :), 'LineWidth', 1.0);
+hold on;
+model = fitlm(Test_acc_end, Flatness_end, 'linear');
+h = plot(Test_acc_end, predict(model), 'color', color_seq(6, :), 'LineWidth', 2);
+r2 = model.Rsquared.Ordinary;
+legend_text = sprintf('Fitted line : $R^2 = %.2f$', r2);
+legend(h, legend_text, 'Location', 'northwest', 'FontSize', 30, 'Interpreter', 'latex');
+legend box off
+xlabel('$Acc_\mathrm{test}$', 'Interpreter', 'latex')
+ylabel('Flatness $F$', 'Interpreter', 'latex')
+xlim([0.888 0.912])
+ylim(Flatness_end_ylim)
+box on
+grid on
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 30);
+axis square
+
+%% Final train/test loss/accuracy & flatness vs t_c
+color_seq = [187, 187, 187; 68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119; 170, 51, 119]/255;
+
+% Train loss vs t_c
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+plot(continue_iterations_list(1:2:end), Train_loss_end(1:2:end), ...
+    '-o', 'LineWidth', 2, 'MarkerSize', 10, 'Color', color_seq(2,:));
+grid on
+axis square
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlabel('$t_c$', 'Interpreter', 'latex')
+ylabel('$\mathcal{L}_\mathrm{train}$', 'Interpreter', 'latex')
+xlim([0 1000])
+yticks([3.6 3.8 4.0 4.2]*1e-3) 
+box on 
+
+% Test loss vs t_c
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+plot(continue_iterations_list(1:2:end), Test_loss_end(1:2:end), ...
+    '-o', 'LineWidth', 2, 'MarkerSize', 10, 'Color', color_seq(2,:));
+grid on
+axis square
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlabel('$t_c$', 'Interpreter', 'latex')
+ylabel('$\mathcal{L}_\mathrm{test}$', 'Interpreter', 'latex')
+xlim([0 1000])
+yticks([0.44 0.46 0.48])
+
+% Train accuracy vs t_c
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+plot(continue_iterations_list(1:2:end), Train_acc_end(1:2:end), ...
+    '-o', 'LineWidth', 2, 'MarkerSize', 10, 'Color', color_seq(2,:));
+grid on
+axis square
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlabel('$t_c$', 'Interpreter', 'latex')
+ylabel('$Acc_\mathrm{train}$', 'Interpreter', 'latex')
+xlim([0 1000])
+ylim([0 1.0]) 
+box on 
+
+% Test accuracy vs t_c
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+plot(continue_iterations_list(1:2:end), Test_acc_end(1:2:end), ...
+    '-o', 'LineWidth', 2, 'MarkerSize', 10, 'Color', color_seq(2,:));
+grid on
+axis square
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlabel('$t_c$', 'Interpreter', 'latex')
+ylabel('$Acc_\mathrm{test}$', 'Interpreter', 'latex')
+xlim([0 1000])
+% yticks([0.88 0.90 0.92]) 
+box on 
+
+% flatness vs t_c
+figure('unit','points','PaperUnits','points', 'position', [100 100 600 450])
+plot(continue_iterations_list(1:2:end), Flatness_end(1:2:end), ...
+    '-o', 'LineWidth', 2, 'MarkerSize', 10, 'Color', color_seq(2,:));
+grid on
+axis square
+set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 24);
+xlabel('$t_c$', 'Interpreter', 'latex')
+ylabel('Flatness $F$', 'Interpreter', 'latex')
+xlim([0 1000])
+ylim(Flatness_end_ylim)
+box on 
+
+
+%% D. Calculate pairwise Jaccard similarity between 51 solutions after training completion
+% (Ratio of intersection to union of the two sets)
+axis_font = 27;
+label_font = 27;
+
+num_solutions = 51;
+Wrong_indices_end = cell(num_solutions, 1);
+similarity_matrix = zeros(num_solutions, num_solutions);
+
+% Extract final wrong indices
+for i = 1:num_solutions
+    Wrong_indices_end{i, 1} = Wrong_indices_all{i, end-i+1};
+end
+
+% Calculate similarity matrix
+for i = 1:num_solutions
+    for j = 1:num_solutions
+        if i ~= j  % Only calculate for different pairs
+            similarity_matrix(i, j) = jaccard_similarity(Wrong_indices_end{i, 1}, Wrong_indices_end{j, 1});
+        else
+            similarity_matrix(i, j) = 1;  % Similarity with itself is 1
+        end
     end
 end
-h_init = scatter3(axA, Weights_base_pca(1, 1), Weights_base_pca(1, 2), Train_loss_base(1), ...
-    60, 'k', 'p', 'filled', 'DisplayName', 'init');
-h_final = scatter3(axA, Weights_base_pca(end, 1), Weights_base_pca(end, 2), Train_loss_base(end), ...
-    50, blue, 'o', 'filled', 'MarkerEdgeColor', 'k', 'DisplayName', 'final');
-view(axA, -148, 21);
-grid(axA, 'on'); box(axA, 'on');
-set(axA, 'ZScale', 'log', 'FontName', 'Times New Roman', 'FontSize', axis_font, 'LineWidth', 0.8);
-xlabel(axA, '$\theta_{\rm pc1}$', 'Interpreter', 'latex', 'FontSize', label_font);
-ylabel(axA, '$\theta_{\rm pc2}$', 'Interpreter', 'latex', 'FontSize', label_font);
-zlabel(axA, '$\mathcal{L}_{\rm train}$', 'Interpreter', 'latex', 'FontSize', label_font);
-title(axA, '\bf A  Continuation readout', 'Interpreter', 'latex', 'FontSize', title_font);
-legend(axA, [h_sgd, h_cont, h_init, h_final], ...
-    {'SGD reference', 'GD continuations', 'initial', 'final'}, ...
-    'Location', 'northeast', 'Interpreter', 'latex', 'FontSize', 9, 'Box', 'off');
 
-%% B. Endpoint quality versus continuation time
-axB = nexttile(tiled, 2);
-yyaxis(axB, 'left');
-plot(axB, continue_iterations_list, Test_loss_end, '-o', 'Color', blue, ...
-    'LineWidth', 1.8, 'MarkerSize', 4.2, 'MarkerFaceColor', blue);
-ylabel(axB, '$\mathcal{L}_{\rm test}\!\left[\theta_{\rm GD}^{(t_c)}(2000-t_c)\right]$', ...
-    'Interpreter', 'latex', 'Color', blue, 'FontSize', label_font);
-axB.YAxis(1).Color = blue;
+max_solution_num = 51;
+fig_D = figure('unit','points','PaperUnits','points', 'position', [100 100 600 600]);
+imagesc(similarity_matrix(1:max_solution_num, 1:max_solution_num))
+colormap(viridis)
+cb_D = colorbar;
+axis square
 
-yyaxis(axB, 'right');
-plot(axB, continue_iterations_list, Flatness_end, '-s', 'Color', orange, ...
-    'LineWidth', 1.8, 'MarkerSize', 4.2, 'MarkerFaceColor', orange);
-ylabel(axB, '$F\!\left[\theta_{\rm GD}^{(t_c)}(2000-t_c)\right]$', ...
-    'Interpreter', 'latex', 'Color', orange, 'FontSize', label_font);
-axB.YAxis(2).Color = orange;
+tick_labels = 0: 200: 20*(max_solution_num-1);
+set(gca, 'XTick', 1:10:max_solution_num, 'XTickLabel', tick_labels, 'YTick', 1:10:max_solution_num, 'YTickLabel', tick_labels,'YDir','normal');
+xlabel('continuation time $t_c$', 'Interpreter', 'latex', 'FontSize', label_font)
+ylabel('continuation time $t_c$', 'Interpreter', 'latex', 'FontSize', label_font)
+set(gca,'Fontname', 'Times New Roman','Fontsize', axis_font);
+set(cb_D, 'FontName', 'Times New Roman', 'FontSize', axis_font);
 
-xline(axB, t_freeze, '--', '$t_f$', 'Color', red, 'LineWidth', 1.6, ...
-    'Interpreter', 'latex', 'LabelVerticalAlignment', 'bottom');
-grid(axB, 'on'); box(axB, 'on');
-set(axB, 'FontName', 'Times New Roman', 'FontSize', axis_font, 'LineWidth', 0.8);
-xlabel(axB, 'continuation time $t_c$', 'Interpreter', 'latex', 'FontSize', label_font);
-title(axB, '\bf B  Continuation endpoint quality', 'Interpreter', 'latex', 'FontSize', title_font);
-xlim(axB, [0, 1000]);
+% ----------- Highlight the region where t_c >= t_freeze -----------
+t_freeze = 420;
+index = t_freeze/20+1;
+hold on
+% Rectangle position [x, y, w, h]. Bottom-left corner (index-0.5) to cover appropriate cells.
+rectangle('Position', [index-0.5, index-0.5, max_solution_num-index+1, max_solution_num-index+1], ...
+          'EdgeColor',  'r', 'LineWidth', 2);
+hold off
+save_fig1_png(fig_D, fullfile(fig1_export_dir, 'Fig1D_jaccard_similarity.png'), fig1_export_resolution);
 
-%% C. Endpoint similarity matrix
-axC = nexttile(tiled, 3);
-imagesc(axC, similarity_matrix);
-axis(axC, 'square');
-if exist('viridis', 'file')
-    colormap(axC, viridis);
-else
-    colormap(axC, parula);
+%% E. Endpoint quality versus continuation time
+if ~exist('t_freeze', 'var')
+    t_freeze = 420;
 end
-cb = colorbar(axC);
-cb.Label.String = 'Jaccard similarity';
-cb.Label.Interpreter = 'latex';
-cb.FontName = 'Times New Roman';
-cb.FontSize = axis_font;
-hold(axC, 'on');
-rectangle(axC, 'Position', [freezing_index - 0.5, freezing_index - 0.5, ...
-    num_solutions - freezing_index + 1, num_solutions - freezing_index + 1], ...
-    'EdgeColor', red, 'LineWidth', 2.0);
-set(axC, 'YDir', 'normal', 'FontName', 'Times New Roman', 'FontSize', axis_font, 'LineWidth', 0.8);
-tick_positions = 1:10:num_solutions;
-tick_labels = continue_iterations_list(tick_positions);
-set(axC, 'XTick', tick_positions, 'XTickLabel', tick_labels, ...
-    'YTick', tick_positions, 'YTickLabel', tick_labels);
-xlabel(axC, '$t_c$', 'Interpreter', 'latex', 'FontSize', label_font);
-ylabel(axC, '$t_c$', 'Interpreter', 'latex', 'FontSize', label_font);
-title(axC, '\bf C  Endpoint similarity matrix', 'Interpreter', 'latex', 'FontSize', title_font);
 
-%% D. Operational definition of t_f
-axD = nexttile(tiled, 4);
-plot(axD, continue_iterations_list, final_basin_similarity, '-o', 'Color', gray, ...
-    'LineWidth', 1.8, 'MarkerSize', 4.2, 'MarkerFaceColor', [0.85, 0.85, 0.85]);
-hold(axD, 'on');
-yline(axD, basin_similarity_threshold, ':', 'basin-stability threshold', ...
-    'Color', [0.35, 0.35, 0.35], 'LineWidth', 1.4, 'Interpreter', 'latex');
-xline(axD, t_freeze, '--', ['$t_f=', num2str(t_freeze), '$'], 'Color', red, ...
-    'LineWidth', 1.6, 'Interpreter', 'latex', 'LabelVerticalAlignment', 'bottom');
+endpoint_blue = color_seq(2, :);
+endpoint_orange = color_seq(4, :);
+axis_font = 30;
+label_font = 30;
 
-stable_y = 0.055 * ones(size(continue_iterations_list));
-scatter(axD, continue_iterations_list(~stable_tail), stable_y(~stable_tail), 28, [0.78, 0.78, 0.78], 'filled');
-scatter(axD, continue_iterations_list(stable_tail), stable_y(stable_tail), 32, red, 'filled');
-text(axD, 40, 0.17, '$t_f=\min\{t_i: b(t_j)=b_\ast\;\forall j\geq i\}$', ...
-    'Interpreter', 'latex', 'FontSize', 11, 'BackgroundColor', 'w', 'Margin', 3);
-text(axD, 40, 0.075, 'stable tail', 'Interpreter', 'latex', 'FontSize', 10, 'Color', red);
-grid(axD, 'on'); box(axD, 'on');
-set(axD, 'FontName', 'Times New Roman', 'FontSize', axis_font, 'LineWidth', 0.8);
-xlabel(axD, 'continuation time $t_c$', 'Interpreter', 'latex', 'FontSize', label_font);
-ylabel(axD, '$Sim_J\left[b(t_c), b_\ast\right]$', 'Interpreter', 'latex', 'FontSize', label_font);
-title(axD, '\bf D  Operational definition of $t_f$', 'Interpreter', 'latex', 'FontSize', title_font);
-xlim(axD, [0, 1000]);
-ylim(axD, [0, 1.03]);
+fig_E = figure('unit','points','PaperUnits','points', 'position', [100 100 600 600]);
+endpoint_ax = gca;
+yyaxis(endpoint_ax, 'left');
+plot(endpoint_ax, continue_iterations_list, Test_loss_end, '-o', ...
+    'Color', endpoint_blue, 'LineWidth', 2, 'MarkerSize', 5, ...
+    'MarkerFaceColor', endpoint_blue);
+ylabel(endpoint_ax, '$\mathcal{L}_{\rm test}$', ...
+    'Interpreter', 'latex', 'Color', endpoint_blue, 'FontSize', label_font);
+yticks(0.44:0.02:0.5)
 
-%% Save outputs
-exportgraphics(fig, fullfile(output_dir, 'Fig1_transient_freezing.png'), 'Resolution', 300);
-exportgraphics(fig, fullfile(output_dir, 'Fig1_transient_freezing.pdf'), 'ContentType', 'vector');
-savefig(fig, fullfile(output_dir, 'Fig1_transient_freezing.fig'));
+yyaxis(endpoint_ax, 'right');
+plot(endpoint_ax, continue_iterations_list, Flatness_end, '-s', ...
+    'Color', endpoint_orange, 'LineWidth', 2, 'MarkerSize', 5, ...
+    'MarkerFaceColor', endpoint_orange);
+ylabel(endpoint_ax, 'Flatness $F$', ...
+    'Interpreter', 'latex', 'Color', endpoint_orange, 'FontSize', label_font);
+hold(endpoint_ax, 'on')
+xline(endpoint_ax, t_freeze, '--', 'Color', 'r', 'LineWidth', 2, ...
+    'Interpreter', 'latex', 'LabelVerticalAlignment', 'bottom');
+grid(endpoint_ax, 'on'); 
+box(endpoint_ax, 'on');
+axis(endpoint_ax, 'square')
+set(endpoint_ax, 'FontName', 'Times New Roman', 'FontSize', axis_font, 'LineWidth', 0.8);
+endpoint_ax.YAxis(1).Color = endpoint_blue;
+endpoint_ax.YAxis(2).Color = endpoint_orange;
+xlabel(endpoint_ax, 'continuation time $t_c$', 'Interpreter', 'latex', 'FontSize', label_font);
+xlim(endpoint_ax, [0, 1000]);
+ylim(endpoint_ax, Flatness_end_ylim);
+yticks(2:0.5:3.5)
+save_fig1_png(fig_E, fullfile(fig1_export_dir, 'Fig1E_endpoint_quality_vs_tc.png'), fig1_export_resolution);
 
-fprintf('Saved Figure 1 to:\n  %s\n', output_dir);
-fprintf('Continuation-based t_f = %.0f iterations at similarity threshold %.2f.\n', t_freeze, basin_similarity_threshold);
 
-%% Local helper
+%% Define Jaccard similarity
 function similarity = jaccard_similarity(list1, list2)
+    % Convert to sets (unique elements)
     set1 = unique(list1);
     set2 = unique(list2);
-    union_set = union(set1, set2);
-    if isempty(union_set)
-        similarity = 1;
-    else
-        similarity = numel(intersect(set1, set2)) / numel(union_set);
-    end
+    
+    % Calculate size of intersection and union
+    intersection_size = numel(intersect(set1, set2));
+    union_size = numel(union(set1, set2));
+    
+    % Calculate Jaccard similarity
+    similarity = intersection_size / union_size;
+end
+
+function save_fig1_png(fig_handle, output_file, resolution)
+    % Use print instead of exportgraphics so Illustrator receives the full
+    % fixed-size canvas rather than a tight-cropped image.
+    set(fig_handle, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+    set(findall(fig_handle, 'Type', 'axes'), 'Color', 'w');
+    drawnow;
+    print(fig_handle, output_file, '-dpng', sprintf('-r%d', resolution));
 end

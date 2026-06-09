@@ -152,6 +152,12 @@ eta_tf_loss(diverge_mask) = NaN;
 draw_heatmap(eta_tf_loss, 'Loss proxy ($\mathcal{L} \leq 0.1$)', ...
     bs_display, lr_display, save_dir, 'Fig4S_loss_proxy');
 
+%% ===== Original freezing time vs 100% training-accuracy time =====
+eta_t_acc100_mean = make_train_acc100_mean(data_dir, bs_display, lr_display, ...
+    diverge_mask, num_repeats);
+plot_original_freezing_vs_accuracy100_mean(eta_tf_jaccard09, eta_t_acc100_mean, ...
+    diverge_mask, bs_display, lr_display, save_dir);
+
 %% ===== Correlation scatter plot =====
 fig = figure('Units', 'points', 'PaperUnits', 'points', ...
     'Position', [100 100 450 400]);
@@ -242,4 +248,87 @@ function draw_heatmap(Data, title_str, bs_display, lr_display, save_dir, filenam
     print(fig, fullfile(save_dir, [filename '.png']), '-dpng', '-r600');
     close(fig);
     fprintf('Saved: %s\n', filename);
+end
+
+function eta_t_acc100_mean = make_train_acc100_mean(data_dir, bs_display, ...
+        lr_display, diverge_mask, num_repeats)
+    eta_t_acc100_mean = NaN(length(bs_display), length(lr_display));
+
+    for i = 1:length(bs_display)
+        bs = bs_display(i);
+        for j = 1:length(lr_display)
+            lr = lr_display(j);
+            if diverge_mask(i, j)
+                continue;
+            end
+
+            acc100_vals = [];
+            for k = 1:num_repeats
+                mat_path = fullfile(data_dir, ...
+                    sprintf('bs%d_lr%g', bs, lr), ...
+                    sprintf('save_metrics_repeat%d.mat', k));
+                if ~exist(mat_path, 'file')
+                    continue;
+                end
+
+                S = load(mat_path, 'train_accuracy', 'save_iterations');
+                idx_acc = find(S.train_accuracy >= 1 - 1e-12, 1, 'first');
+                if ~isempty(idx_acc)
+                    acc100_vals(end+1) = lr * double(S.save_iterations(idx_acc)); %#ok<AGROW>
+                end
+            end
+
+            if ~isempty(acc100_vals)
+                eta_t_acc100_mean(i, j) = mean(acc100_vals, 'omitnan');
+            end
+        end
+    end
+end
+
+function plot_original_freezing_vs_accuracy100_mean(eta_tf_original, ...
+        eta_t_acc100_mean, diverge_mask, bs_display, lr_display, save_dir)
+    valid = ~diverge_mask & ~isnan(eta_tf_original) & ~isnan(eta_t_acc100_mean);
+    x = eta_tf_original(valid);
+    y = eta_t_acc100_mean(valid);
+    [BS_grid, LR_grid] = ndgrid(bs_display, lr_display);
+    batch_size = BS_grid(valid);
+    learning_rate = LR_grid(valid);
+
+    if isempty(x)
+        warning('No valid grid cells found for original freezing-vs-accuracy mean plot.');
+        return;
+    end
+
+    R2 = corr(x(:), y(:))^2;
+    lim_max = max([100; x(:); y(:)]);
+
+    T_out = table(batch_size(:), learning_rate(:), x(:), y(:), x(:) <= y(:) + 1e-9, ...
+        'VariableNames', {'batch_size', 'learning_rate', 'mean_eta_tf_original', ...
+        'mean_eta_t_acc100', 'freeze_not_later'});
+    csv_path = fullfile(save_dir, ...
+        'Fig4S_original_freezing_vs_train_acc100_mean_summary.csv');
+    writetable(T_out, csv_path);
+
+    fig = figure('Units', 'points', 'PaperUnits', 'points', ...
+        'Position', [100 100 450 400]);
+    hold on;
+    scatter(x, y, 80, [0.49 0.18 0.56], 'filled', 'MarkerFaceAlpha', 0.70);
+    plot([0 lim_max], [0 lim_max], 'k--', 'LineWidth', 1);
+    hold off;
+
+    xlabel('Jaccard $\eta\langle t_f \rangle$', 'Interpreter', 'latex');
+    ylabel('100\% train accuracy $\eta\langle t_{100\%} \rangle$', ...
+        'Interpreter', 'latex');
+    xlim([0 lim_max]);
+    ylim([0 lim_max]);
+    axis square;
+    set(gca, 'Fontname', 'Times New Roman', 'FontSize', 18);
+
+    set(fig, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+    drawnow;
+    print(fig, fullfile(save_dir, ...
+        'Fig4S_original_freezing_vs_train_acc100_mean.png'), '-dpng', '-r600');
+    close(fig);
+    fprintf('Saved: Fig4S_original_freezing_vs_train_acc100_mean\n');
+    fprintf('Saved: %s\n', csv_path);
 end

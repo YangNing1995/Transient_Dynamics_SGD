@@ -529,6 +529,39 @@ if ~exist('t_freeze', 'var')
     t_freeze = 420;
 end
 
+repo_dir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+endpoint_stats_root = fullfile(repo_dir, 'fig1_endpoint_stats_bs50_lr0.05_ce_uniform_grid');
+endpoint_stats = load_endpoint_stats(endpoint_stats_root);
+endpoint_stats = endpoint_stats(strcmp(endpoint_stats.status, 'ok'), :);
+
+freezing_summary_path = fullfile(repo_dir, 'freezing_time_training_lr_r1-5_ce', ...
+    'jaccard09', 'bs50_lr0.05', 'freezing_time_summary.csv');
+freezing_stats = readtable(freezing_summary_path);
+freezing_stats = freezing_stats(strcmp(freezing_stats.status, 'ok'), :);
+endpoint_tf_values = freezing_stats.tf;
+endpoint_tf_mean = mean(endpoint_tf_values, 'omitnan');
+endpoint_tf_sem = std(endpoint_tf_values, 'omitnan') / sqrt(sum(isfinite(endpoint_tf_values)));
+
+endpoint_tc = unique(endpoint_stats.checkpoint_t);
+endpoint_tc = sort(endpoint_tc(:));
+num_endpoint_tc = numel(endpoint_tc);
+endpoint_test_loss_mean = nan(num_endpoint_tc, 1);
+endpoint_test_loss_sem = nan(num_endpoint_tc, 1);
+endpoint_flatness_mean = nan(num_endpoint_tc, 1);
+endpoint_flatness_sem = nan(num_endpoint_tc, 1);
+endpoint_repeat_count = zeros(num_endpoint_tc, 1);
+
+for i = 1:num_endpoint_tc
+    tc_mask = endpoint_stats.checkpoint_t == endpoint_tc(i);
+    test_loss_values = endpoint_stats.test_loss(tc_mask);
+    flatness_values = endpoint_stats.hessian_flatness(tc_mask);
+    endpoint_repeat_count(i) = sum(tc_mask);
+    endpoint_test_loss_mean(i) = mean(test_loss_values, 'omitnan');
+    endpoint_flatness_mean(i) = mean(flatness_values, 'omitnan');
+    endpoint_test_loss_sem(i) = std(test_loss_values, 'omitnan') / sqrt(endpoint_repeat_count(i));
+    endpoint_flatness_sem(i) = std(flatness_values, 'omitnan') / sqrt(endpoint_repeat_count(i));
+end
+
 endpoint_blue = color_seq(2, :);
 endpoint_orange = color_seq(4, :);
 axis_font = 30;
@@ -537,22 +570,32 @@ label_font = 30;
 fig_E = figure('unit','points','PaperUnits','points', 'position', [100 100 600 600]);
 endpoint_ax = gca;
 yyaxis(endpoint_ax, 'left');
-plot(endpoint_ax, continue_iterations_list, Test_loss_end, '-o', ...
-    'Color', endpoint_blue, 'LineWidth', 2, 'MarkerSize', 5, ...
-    'MarkerFaceColor', endpoint_blue);
+hold(endpoint_ax, 'on')
+endpoint_loss_ylim = [0.42, 0.49];
+tf_band = [endpoint_tf_mean - endpoint_tf_sem, endpoint_tf_mean + endpoint_tf_sem];
+patch(endpoint_ax, [tf_band(1), tf_band(2), tf_band(2), tf_band(1)], ...
+    [endpoint_loss_ylim(1), endpoint_loss_ylim(1), endpoint_loss_ylim(2), endpoint_loss_ylim(2)], ...
+    [1.0, 0.0, 0.0], 'FaceAlpha', 0.08, 'EdgeColor', 'none', 'HandleVisibility', 'off');
+errorbar(endpoint_ax, endpoint_tc, endpoint_test_loss_mean, endpoint_test_loss_sem, '-o', ...
+    'Color', endpoint_blue, 'LineWidth', 2.2, 'MarkerSize', 5, ...
+    'MarkerFaceColor', endpoint_blue, 'CapSize', 5);
 ylabel(endpoint_ax, '$\mathcal{L}_{\rm test}$', ...
     'Interpreter', 'latex', 'Color', endpoint_blue, 'FontSize', label_font);
-yticks(0.44:0.02:0.5)
+ylim(endpoint_ax, endpoint_loss_ylim);
+yticks(endpoint_ax, 0.42:0.01:0.49)
+xline(endpoint_ax, endpoint_tf_mean, '--', 'Color', 'r', 'LineWidth', 2, ...
+    'HandleVisibility', 'off');
+% text(endpoint_ax, endpoint_tf_mean + 20, endpoint_loss_ylim(2) - 0.004, ...
+%     '$\langle t_f\rangle$', 'Interpreter', 'latex', 'Color', 'r', ...
+%     'FontSize', 18, 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
 
 yyaxis(endpoint_ax, 'right');
-plot(endpoint_ax, continue_iterations_list, Flatness_end, '-s', ...
-    'Color', endpoint_orange, 'LineWidth', 2, 'MarkerSize', 5, ...
-    'MarkerFaceColor', endpoint_orange);
+errorbar(endpoint_ax, endpoint_tc, endpoint_flatness_mean, endpoint_flatness_sem, '-s', ...
+    'Color', endpoint_orange, 'LineWidth', 2.2, 'MarkerSize', 5, ...
+    'MarkerFaceColor', endpoint_orange, 'CapSize', 5);
 ylabel(endpoint_ax, 'Flatness $F$', ...
     'Interpreter', 'latex', 'Color', endpoint_orange, 'FontSize', label_font);
 hold(endpoint_ax, 'on')
-xline(endpoint_ax, t_freeze, '--', 'Color', 'r', 'LineWidth', 2, ...
-    'Interpreter', 'latex', 'LabelVerticalAlignment', 'bottom');
 grid(endpoint_ax, 'on'); 
 box(endpoint_ax, 'on');
 axis(endpoint_ax, 'square')
@@ -561,8 +604,8 @@ endpoint_ax.YAxis(1).Color = endpoint_blue;
 endpoint_ax.YAxis(2).Color = endpoint_orange;
 xlabel(endpoint_ax, 'continuation time $t_c$', 'Interpreter', 'latex', 'FontSize', label_font);
 xlim(endpoint_ax, [0, 1000]);
-ylim(endpoint_ax, Flatness_end_ylim);
-yticks(2:0.5:3.5)
+ylim(endpoint_ax, [1.8, 3.8]);
+yticks(endpoint_ax, 2:0.5:3.5)
 save_fig1_png(fig_E, fullfile(fig1_export_dir, 'Fig1E_endpoint_quality_vs_tc.png'), fig1_export_resolution);
 
 
@@ -587,4 +630,18 @@ function save_fig1_png(fig_handle, output_file, resolution)
     set(findall(fig_handle, 'Type', 'axes'), 'Color', 'w');
     drawnow;
     print(fig_handle, output_file, '-dpng', sprintf('-r%d', resolution));
+end
+
+function endpoint_stats = load_endpoint_stats(endpoint_stats_root)
+    summary_files = dir(fullfile(endpoint_stats_root, 'r*', 'endpoint_stats_summary.csv'));
+    if isempty(summary_files)
+        error('No endpoint_stats_summary.csv files found under %s', endpoint_stats_root);
+    end
+
+    endpoint_stats = table();
+    for file_idx = 1:numel(summary_files)
+        summary_path = fullfile(summary_files(file_idx).folder, summary_files(file_idx).name);
+        current_table = readtable(summary_path);
+        endpoint_stats = [endpoint_stats; current_table]; %#ok<AGROW>
+    end
 end

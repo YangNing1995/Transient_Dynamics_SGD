@@ -1,7 +1,6 @@
-% Fig4 revised: Analytical model results
-%   Panel A: Effective loss landscape (unchanged)
-%   Panel B: Simulation P_flat(y) with y_freeze markers (paper definition)
-%   Panel C: Paradox plot — NESS band vs simulation outcome
+% Fig4 PREVIEW: draw with available data
+%   Panel B: old trajectory files + cross markers (90% estimate for now)
+%   Panel C: 6 completed sim points + analytical NESS band
 % =========================================================================
 
 %% Paths and settings
@@ -9,14 +8,12 @@ script_dir = fileparts(mfilename('fullpath'));
 repo_root  = fullfile(script_dir, '..', '..');
 out_dir    = fullfile(repo_root, 'PRX_revison', 'Figures_revision', 'Fig4_analytic_model');
 export_res = 600;
-
 if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 
 % --- Model parameters ---
 x1 = 0.8;  x2 = 0.65;  x0 = 1;  f0 = 1;
 y_b = 30;  y_f = 20;   y_d = 100;  L_d = 1;
 
-% --- Component functions ---
 g1 = @(y) 2*x1.*y./(y + y_b);
 g2 = @(y) 2*x2.*y./(y + y_b);
 f1 = @(y) f0.*(x1.^2/x0.^2).*((y + y_f).^2./(y + y_b).^2);
@@ -26,110 +23,63 @@ L  = @(x, y) arrayfun(@(xx) ...
         L0(y) + (xx>=0)*xx.*(xx - g1(y))./f1(y) + ...
         (xx<0)*xx.*(xx + g2(y))./f2(y), x);
 
-gamma = x1^2 / x2^2;   % flatness ratio (~1.515)
-P_eq  = 1 / (1 + 1/gamma);  % equilibrium P_flat (~0.60)
+gamma = x1^2 / x2^2;
+P_eq  = 1 / (1 + 1/gamma);
 
-%% ===== Panel A: Effective loss landscape (unchanged) ====================
-y_fixed = 40;
-x_vals  = linspace(-1.0, 1.2, 500);
-L_vals  = L(x_vals, y_fixed);
-
-f1_val = f1(y_fixed);  f2_val = f2(y_fixed);
-L_eff  = zeros(size(x_vals));
-for k = 1:length(x_vals)
-    xx = x_vals(k);
-    if xx >= 0
-        r = sqrt(f1_val / f2_val);
-    else
-        r = sqrt(f2_val / f1_val);
-    end
-    L_eff(k) = r * L(xx, y_fixed) + (1 - r) * L0(y_fixed);
-end
-
-figA = figure('Position', [200 200 600 400]);
-hold on;
-plot(x_vals, L_vals,              'b-', 'LineWidth', 2.5, ...
-    'DisplayName', '$\mathcal{L}(x,y)$');
-plot(x_vals, L_eff,               'r-', 'LineWidth', 2.5, ...
-    'DisplayName', '$\mathcal{L}_\mathrm{eff}(x,y)$');
-plot(x_vals, L_eff - L_vals+1.3,  'k-', 'LineWidth', 2.5, ...
-    'DisplayName', '$\mathcal{L}_\mathrm{SGD}(x,y)$');
-xlabel('$x$', 'FontSize', 18, 'FontWeight', 'bold', 'Interpreter', 'latex');
-ylabel('Loss', 'FontSize', 18);
-xlim([-0.8 1.2]);
-legend('Location', 'best', 'Interpreter', 'latex'); legend boxoff;
-box off; grid off; axis off;
-set(gca, 'FontSize', 14, 'LineWidth', 1.2, 'FontName', 'Times New Roman');
-save_panel(figA, fullfile(out_dir, 'Fig4A_effective_loss.png'), export_res);
-
-
-%% ===== Panel B: Simulation P_flat(y) + y_freeze markers ================
-%  Uses new data with actual y_freeze (y at last valley hop).
-
+%% ===== Panel B: New simulation data with paper-correct y_freeze ========
 sim_data = load(fullfile(repo_root, 'Two_valleys_model', 'Fig4_simulation_data.mat'));
 
-% --- Colours & labels (ordered: largest to smallest noise) ---------------
-%  panel_b_sigmas = [0.01, 0.05, 0.1] in the data file
-%  Display order: sigma=0.1 (blue), 0.05 (orange), 0.01 (green)
-display_order = [3, 2, 1];  % indices into panel_b_sigmas
+% display_order: indices into panel_b_sigmas = [0.01, 0.05, 0.1]
+%   → display as sigma=0.1 (blue), 0.05 (orange), 0.01 (green)
+display_order = [3, 2, 1];
 
-clr = [0.00 0.45 0.74;    % blue   — largest noise  (sigma=0.1)
-       0.85 0.33 0.10;    % orange — medium noise   (sigma=0.05)
-       0.47 0.67 0.19];   % green  — smallest noise (sigma=0.01)
+y_data     = cell(3, 1);
+P_sim_data = cell(3, 1);
+yf_est     = zeros(3, 1);
+Pf_est     = zeros(3, 1);
 
-ds_lab = {'$\Delta_S=10^{-3}$', ...
-          '$\Delta_S=5{\times}10^{-4}$', ...
-          '$\Delta_S=10^{-4}$'};
+for ci = 1:3
+    di = display_order(ci);
+    y_data{ci}     = sim_data.pb_mean_y{di};
+    P_sim_data{ci} = sim_data.pb_P_right{di};
+    yf_est(ci)     = sim_data.pb_y_freeze(di);
+    % P_flat at y_freeze
+    [~, idx_yf] = min(abs(y_data{ci} - yf_est(ci)));
+    Ps_smooth = movmean(P_sim_data{ci}, max(50, floor(length(P_sim_data{ci})/20)));
+    Pf_est(ci) = Ps_smooth(idx_yf);
+end
+
+clr = [0.00 0.45 0.74;  0.85 0.33 0.10;  0.47 0.67 0.19];
+ds_lab = {'$\Delta_S=10^{-3}$','$\Delta_S=5{\times}10^{-4}$','$\Delta_S=10^{-4}$'};
 
 figB = figure('Units','points','PaperUnits','points','Position',[100 100 500 400]);
 hold on;
 
-% 1) Simulation curves (solid)
-for ci = 1:3
-    di = display_order(ci);  % index into panel_b data
-    my = sim_data.pb_mean_y{di};
-    pr = sim_data.pb_P_right{di};
-    plot(my, pr, '-', ...
-        'Color', [clr(ci,:) 0.6], 'LineWidth', 2.0, ...
-        'DisplayName', ds_lab{ci});
+for i = 1:3
+    plot(y_data{i}, P_sim_data{i}, '-', ...
+        'Color', [clr(i,:) 0.6], 'LineWidth', 2.0, ...
+        'DisplayName', ds_lab{i});
 end
 
-% 2) Equilibrium reference line
-plot([1 20], [P_eq P_eq], '-.', ...
-    'Color', [0.5 0.5 0.5], 'LineWidth', 1.5, ...
+plot([1 20], [P_eq P_eq], '-.', 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5, ...
     'HandleVisibility', 'off');
 text(1.15, P_eq - 0.03, sprintf('$P_\\mathrm{flat}^\\mathrm{eq}=%.2f$', P_eq), ...
     'Interpreter', 'latex', 'FontSize', 14, 'Color', [0.4 0.4 0.4]);
 
-% 3) y_freeze markers (cross) + vertical dashed guides
-for ci = 1:3
-    di = display_order(ci);
-    yf = sim_data.pb_y_freeze(di);
-    % Find P_flat at y_freeze from the trajectory
-    my = sim_data.pb_mean_y{di};
-    pr = sim_data.pb_P_right{di};
-    [~, idx_yf] = min(abs(my - yf));
-    pf = pr(idx_yf);
-
-    % Vertical guide
-    plot([yf yf], [0.5 pf], '--', ...
-        'Color', [clr(ci,:) 0.5], 'LineWidth', 1.2, ...
-        'HandleVisibility', 'off');
-    % Cross marker
-    hv = 'off';
-    if ci == 1, hv = 'on'; end
-    plot(yf, pf, 'x', ...
-        'MarkerSize', 14, 'LineWidth', 2.5, ...
-        'Color', 'k', ...
+for i = 1:3
+    plot([yf_est(i) yf_est(i)], [0.5 Pf_est(i)], '--', ...
+        'Color', [clr(i,:) 0.5], 'LineWidth', 1.2, 'HandleVisibility', 'off');
+    hv = 'off'; if i == 1, hv = 'on'; end
+    plot(yf_est(i), Pf_est(i), 'x', ...
+        'MarkerSize', 14, 'LineWidth', 2.5, 'Color', 'k', ...
         'HandleVisibility', hv, 'DisplayName', '$y_\mathrm{freeze}$');
 end
 
 xlabel('$y$', 'Interpreter', 'LaTeX', 'FontSize', 22);
 ylabel('$P_\mathrm{flat}$', 'Interpreter', 'LaTeX', 'FontSize', 22);
-ylim([0.5 1.02]);  xlim([1 20]);  yticks([0.5 0.75 1]);
-legend('Location', 'southeast', 'Interpreter', 'LaTeX', ...
-       'Box', 'on', 'FontSize', 13);
-grid on;  box on;
+ylim([0.5 1.02]); xlim([1 20]); yticks([0.5 0.75 1]);
+legend('Location', 'southeast', 'Interpreter', 'LaTeX', 'Box', 'on', 'FontSize', 13);
+grid on; box on;
 set(gca, 'FontName', 'Times New Roman', 'FontSize', 20, 'XScale', 'log');
 save_panel(figB, fullfile(out_dir, 'Fig4B_Pflat_vs_y.png'), export_res);
 
@@ -157,11 +107,20 @@ eps_freeze = 0.01;
 C_freeze   = y_b * sqrt(2*log(1/eps_freeze)/(x1*x2));
 y_freeze_func = @(DS) C_freeze .* sqrt(DS);
 yf_line = y_freeze_func(DS_grid);
+
+% Clip trajectory to y_grid range
 yf_line(yf_line > max(y_grid)) = NaN;
+
+% P_flat along trajectory (Eq. 12)
+epsilon_tr = 100;
+Phi = (2*(x1^2 - x2^2)) / (27*y_b) * (L_d/y_d + 8*x0^2/(27*y_f));
+Base_line  = sqrt(DS_grid) ./ (epsilon_tr * Phi);
+Ptr_line   = (1 + gamma^(-0.5) .* Base_line.^(1-gamma)).^(-1);
 
 % --- 3. Draw -------------------------------------------------------------
 figC = figure('Units','points','PaperUnits','points','Position',[100 100 520 400]);
 
+% Filled contour — P_flat^ss landscape
 contour_levels = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98];
 [~, hcf] = contourf(DS_grid, y_grid, P_ness_grid, contour_levels, ...
     'LineColor', [0.6 0.6 0.6]);
@@ -175,17 +134,20 @@ ylabel(cb, '$P_\mathrm{flat}^\mathrm{ss}$', 'Interpreter', 'latex', 'FontSize', 
 clim([0.55 1.0]);
 cb.Ticks = [0.6 0.7 0.8 0.9 1.0];
 
+% Contour line labels
 [C_lines, h_lines] = contour(DS_grid, y_grid, P_ness_grid, ...
     [0.7, 0.8, 0.9, 0.95], 'LineColor', [0.9 0.9 0.9], 'LineWidth', 0.8);
 clabel(C_lines, h_lines, 'FontSize', 10, 'Color', 'w', ...
     'FontName', 'Times New Roman');
 set(h_lines, 'HandleVisibility', 'off');
 
+% y_freeze trajectory — thick black line with white outline
 plot(DS_grid, yf_line, '-', 'Color', 'w', 'LineWidth', 4.5, ...
     'HandleVisibility', 'off');
 plot(DS_grid, yf_line, '-', 'Color', 'k', 'LineWidth', 2.5, ...
     'DisplayName', '$y_\mathrm{freeze}(\Delta_S)$');
 
+% Fixed-y reference line for contrast (e.g., y=2)
 y_ref = 2;
 plot(DS_grid([1 end]), [y_ref y_ref], '--', 'Color', 'w', 'LineWidth', 2.5, ...
     'HandleVisibility', 'off');
@@ -197,16 +159,15 @@ ylabel('$y$',                     'Interpreter', 'latex', 'FontSize', 20);
 xlim([3e-5 6e-3]);
 ylim([0.3 8]);
 set(gca, 'FontName', 'Times New Roman', 'FontSize', 18);
-legend('Location', 'northwest', 'Interpreter', 'LaTeX', 'FontSize', 13, ...
+lg = legend('Location', 'northwest', 'Interpreter', 'LaTeX', 'FontSize', 13, ...
        'Box', 'on', 'TextColor', 'k');
 box on;
 save_panel(figC, fullfile(out_dir, 'Fig4C_paradox.png'), export_res);
 
-fprintf('\nExported revised Fig4 panels to:\n  %s\n', out_dir);
+fprintf('\nPreview exported to:\n  %s\n', out_dir);
 
 
 %% ===== Helper functions =================================================
-
 function save_panel(fig, output_file, resolution)
     set(fig, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
     set(findall(fig, 'Type', 'axes'), 'Color', 'w');

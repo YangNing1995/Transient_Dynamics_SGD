@@ -238,17 +238,17 @@ P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx
 \left(\frac{y_\mathrm{freeze}}{y_b+y_\mathrm{freeze}}\right)^2\right)\right]^{-1}.
 \label{eq:tr_SGD_original}
 \end{equation}
-Crucially, $y_\mathrm{freeze}$ increases with $\Delta_S$: stronger noise keeps the system mobile for longer, delaying the freezing point. Quantitatively (see Appendix~\ref{sec:appendix4} for derivation):
+Crucially, $y_\mathrm{freeze}$ increases with $\Delta_S$: stronger noise keeps the system mobile for longer, delaying the freezing point. Within the asymptotic regime where the escape-rate prefactor varies slowly compared with the exponential barrier factor, the freezing criterion gives the scaling estimate (see Appendix~\ref{sec:appendix4} for derivation):
 \begin{equation}
 y_\mathrm{freeze} \approx y_b \cdot \frac{\sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}}{x_2 - \sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}},
 \label{eq:y_freeze}
 \end{equation}
-where $\varepsilon$ is a small constant and $\Phi$ absorbs other model parameters. Substituting into Eq.~\ref{eq:tr_SGD_original} yields:
+where $\varepsilon$ is a small constant and $\Phi$ is an effective constant absorbing slowly varying prefactors and other model parameters. This expression is meaningful in the regime $0<\Delta_S \ln[\Delta_S/(\varepsilon^2\Phi^2)]<x_2^2$, where the logarithm is positive and the predicted freezing point remains finite. Substituting Eq.~\ref{eq:y_freeze} into Eq.~\ref{eq:tr_SGD_original} yields:
 \begin{equation}
 P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx \left[ 1 + \gamma^{-\frac{1}{2}} \left( \frac{\sqrt{\Delta_S}}{\varepsilon \Phi} \right)^{1-\gamma} \right]^{-1},
 \label{eq:tr_SGD}
 \end{equation}
-which, since $\gamma > 1$, shows that $P_{\mathrm{flat}}$ increases monotonically with noise strength. This bias is further enhanced by a larger flatness contrast $\gamma$ [Fig.~\ref{fig:analytical_results}(c)]. Thus, while stronger noise reduces the static preference at fixed $y$, this effect is dominated by delayed freezing: the system explores longer and ultimately settles in the flatter valley with greater probability, resolving the apparent paradox.
+which, since $\gamma > 1$, shows that $P_{\mathrm{flat}}$ increases monotonically with noise strength within the same freezing-approximation regime. This bias is further enhanced by a larger flatness contrast $\gamma$ [Fig.~\ref{fig:analytical_results}(c)]. Thus, while stronger noise reduces the static preference at fixed $y$, this effect is dominated by delayed freezing: the system explores longer and ultimately settles in the flatter valley with greater probability, resolving the apparent paradox.
 
 
 
@@ -540,7 +540,7 @@ Inserting this derivative back into the freezing criterion Eq.~(\ref{eq:freezing
 \begin{equation}
      k_\mathrm{ss}^{-} \approx \frac{\varepsilon \Phi}{\Delta_S} \frac{k_\mathrm{ss}^{+}}{k_\mathrm{ss}^{+} + k_\mathrm{ss}^{-}}.
 \end{equation}
-Here, all model parameters are absorbed into $\Phi$. We focus on the regime where freezing occurs well before 
+Here, slowly varying prefactors and model parameters are absorbed into $\Phi$. We focus on the regime where freezing occurs well before 
 $P_{\mathrm{flat}}^{\mathrm{tr,SGD}}$ reaches 1, so that 
 $k_\mathrm{ss}^{-}/k_\mathrm{ss}^{+}=\mathcal{O}(1)$. 
 In this regime, the escape rates decay exponentially with $y$, 
@@ -564,11 +564,12 @@ Assuming the prefactor varies slowly, we solve the implicit equation for the exp
     &\approx \ln\left( \frac{\sqrt{\Delta_S}}{\varepsilon \Phi} \right).
 \end{split}
 \end{equation}
-Solving for $y_\mathrm{freeze}$ reveals its explicit dependence on noise strength:
+Solving for $y_\mathrm{freeze}$ gives a scaling estimate for its dependence on noise strength:
 \begin{equation}
 y_\mathrm{freeze} \approx y_b \cdot \frac{\sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}}{x_2 - \sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}}.
 \label{eq:y_freeze_explicit}
 \end{equation}
+This estimate applies when $0<\Delta_S \ln[\Delta_S/(\varepsilon^2\Phi^2)]<x_2^2$; outside this range the asymptotic expression either has no real positive freezing point or predicts freezing beyond the finite-$y$ regime captured by the approximation.
 Substituting Eq.~(\ref{eq:y_freeze_explicit}) back into Eq.~(\ref{eq:tr_SGD_original_a}), we obtain the final transient probability:
 \begin{equation}
 \label{eq:final_ptr_corrected}
@@ -578,7 +579,7 @@ Substituting Eq.~(\ref{eq:y_freeze_explicit}) back into Eq.~(\ref{eq:tr_SGD_orig
     &\approx \left[ 1 + \gamma^{-\frac{1}{2}} \left( \frac{\sqrt{\Delta_S}}{\varepsilon \Phi} \right)^{1-\gamma} \right]^{-1}.
 \end{split}
 \end{equation}
-Since $\gamma = f_1/f_2 > 1$, the exponent $(1-\gamma)$ is negative. Thus, increasing noise $\Delta_S$ reduces the term in the denominator, thereby increasing the probability $P_{\mathrm{flat}}$ of selecting the flatter valley.
+Since $\gamma = f_1/f_2 > 1$, the exponent $(1-\gamma)$ is negative. Thus, within the freezing-approximation regime, increasing noise $\Delta_S$ reduces the term in the denominator, thereby increasing the probability $P_{\mathrm{flat}}$ of selecting the flatter valley.
 
 
 \bibliography{deeplearning}

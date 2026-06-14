@@ -140,8 +140,8 @@ save_panel(figB, fullfile(out_dir, 'Fig4B_Pflat_vs_y.png'), export_res);
 %  tracking high-P_flat contours even as each fixed-y slice drops.
 
 % --- 1. Compute NESS P_flat on a 2D grid --------------------------------
-DS_grid = logspace(-4.5, -1.5, 200);
-y_grid  = linspace(0.3, 10, 200);
+DS_grid = logspace(-4, log10(6e-3), 240);
+y_grid  = linspace(0.01, 15, 240);
 P_ness_grid = zeros(numel(y_grid), numel(DS_grid));
 
 for iy = 1:numel(y_grid)
@@ -152,51 +152,77 @@ for iy = 1:numel(y_grid)
     end
 end
 
+% The exact erfi expression overflows in the low-noise, high-barrier corner.
+% Use the asymptotic NESS form there, which is the expression used in the
+% transient freezing estimate.
+[DS_mesh_for_calc, y_mesh_for_calc] = meshgrid(DS_grid, y_grid);
+DeltaL_mesh = (x0^2/f0) .* (y_mesh_for_calc.^2 ./ (y_mesh_for_calc + y_f).^2);
+f1_mesh = f1(y_mesh_for_calc);
+f2_mesh = f2(y_mesh_for_calc);
+P_ness_asym = (1 + gamma^(-1/2) .* ...
+    exp(DeltaL_mesh .* (f2_mesh - f1_mesh) ./ (2 .* DS_mesh_for_calc))).^(-1);
+bad_ness = ~isfinite(P_ness_grid) | P_ness_grid <= 0 | P_ness_grid >= 1;
+P_ness_grid(bad_ness) = P_ness_asym(bad_ness);
+
 % --- 2. y_freeze trajectory ---------------------------------------------
 eps_freeze = 0.01;
-C_freeze   = y_b * sqrt(2*log(1/eps_freeze)/(x1*x2));
-y_freeze_func = @(DS) C_freeze .* sqrt(DS);
+Phi_scale = 3000;
+Phi_freeze = Phi_scale * 2*(x1^2 - x2^2)/(27*y_b) * (L_d/y_d + 8*x0^2/(27*y_f));
+y_freeze_func = @(DS) y_b .* sqrt(DS .* log(DS ./ (eps_freeze^2 * Phi_freeze^2))) ./ ...
+    (x2 - sqrt(DS .* log(DS ./ (eps_freeze^2 * Phi_freeze^2))));
 yf_line = y_freeze_func(DS_grid);
-yf_line(yf_line > max(y_grid)) = NaN;
+valid_yf = isreal(yf_line) & yf_line > min(y_grid) & yf_line < max(y_grid);
+yf_line(~valid_yf) = NaN;
 
 % --- 3. Draw -------------------------------------------------------------
 figC = figure('Units','points','PaperUnits','points','Position',[100 100 520 400]);
 
-contour_levels = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98];
-[~, hcf] = contourf(DS_grid, y_grid, P_ness_grid, contour_levels, ...
-    'LineColor', [0.6 0.6 0.6]);
-set(hcf, 'HandleVisibility', 'off');
+logDS_grid = log10(DS_grid);
+imagesc(logDS_grid, y_grid, P_ness_grid);
+set(gca, 'YDir', 'normal');
 hold on;
-set(gca, 'XScale', 'log');
 
-colormap(flipud(parula(256)));
+colormap(parula(256));
 cb = colorbar;
 ylabel(cb, '$P_\mathrm{flat}^\mathrm{ss}$', 'Interpreter', 'latex', 'FontSize', 18);
-clim([0.55 1.0]);
-cb.Ticks = [0.6 0.7 0.8 0.9 1.0];
+clim([0.65 0.98]);
+cb.Ticks = [0.65 0.75 0.85 0.95];
 
-[C_lines, h_lines] = contour(DS_grid, y_grid, P_ness_grid, ...
-    [0.7, 0.8, 0.9, 0.95], 'LineColor', [0.9 0.9 0.9], 'LineWidth', 0.8);
-clabel(C_lines, h_lines, 'FontSize', 10, 'Color', 'w', ...
-    'FontName', 'Times New Roman');
-set(h_lines, 'HandleVisibility', 'off');
+valid_patch = isfinite(yf_line);
+line_start = linspace(min(logDS_grid), max(logDS_grid) - 0.18, 18);
+for ih = 1:numel(line_start)
+    x0_h = line_start(ih);
+    x1_h = min(max(logDS_grid), x0_h + 0.28);
+    x_seg = linspace(x0_h, x1_h, 40);
+    y_boundary = interp1(logDS_grid(valid_patch), yf_line(valid_patch), x_seg, 'linear', NaN);
+    y_seg = y_boundary + linspace(0.25, 3.0, numel(x_seg));
+    inside = isfinite(y_boundary) & y_seg <= max(y_grid);
+    if nnz(inside) > 1
+        plot(x_seg(inside), y_seg(inside), '-', ...
+            'Color', [0 0 0], 'LineWidth', 0.8, ...
+            'HandleVisibility', 'off');
+    end
+end
 
-plot(DS_grid, yf_line, '-', 'Color', 'w', 'LineWidth', 4.5, ...
+plot(logDS_grid, yf_line, '-', 'Color', 'w', 'LineWidth', 4.5, ...
     'HandleVisibility', 'off');
-plot(DS_grid, yf_line, '-', 'Color', 'k', 'LineWidth', 2.5, ...
+plot(logDS_grid, yf_line, '-', 'Color', 'k', 'LineWidth', 2.5, ...
     'DisplayName', '$y_\mathrm{freeze}(\Delta_S)$');
 
-y_ref = 2;
-plot(DS_grid([1 end]), [y_ref y_ref], '--', 'Color', 'w', 'LineWidth', 2.5, ...
-    'HandleVisibility', 'off');
-plot(DS_grid([1 end]), [y_ref y_ref], '--', 'Color', [0.85 0.2 0.2], 'LineWidth', 1.8, ...
+y_ref = 5;
+plot(logDS_grid([1 end]), [y_ref y_ref], '--', 'Color', [0.85 0.2 0.2], 'LineWidth', 1.8, ...
     'DisplayName', sprintf('Fixed $y{=}%d$', y_ref));
 
 xlabel('$\Delta_S = \eta\sigma$', 'Interpreter', 'latex', 'FontSize', 20);
 ylabel('$y$',                     'Interpreter', 'latex', 'FontSize', 20);
-xlim([3e-5 6e-3]);
-ylim([0.3 8]);
+xlim([min(logDS_grid) max(logDS_grid)]);
+ylim([0 15]);
+xticks([-4 -3.5 -3 -2.5]);
+xticklabels({'$10^{-4}$', '$10^{-3.5}$', '$10^{-3}$', '$10^{-2.5}$'});
+yticks([0 4 8 12]);
 set(gca, 'FontName', 'Times New Roman', 'FontSize', 18);
+set(gca, 'TickLabelInterpreter', 'latex');
+axis square;
 legend('Location', 'northwest', 'Interpreter', 'LaTeX', 'FontSize', 13, ...
        'Box', 'on', 'TextColor', 'k');
 box on;

@@ -20,7 +20,11 @@
 
 \begin{document}
 
-\title{Transient Freezing Governs Flat-Minimum Selection in Stochastic Gradient Descent}
+%\title{Transient Freezing Governs Flat-Minimum Selection in Stochastic Gradient Descent}
+
+\title{Transient Exploration and Freezing Govern Solution Selection in Stochastic Gradient Descent}
+
+\title{Noise-Driven Exploration and Transient Freezing Select Flat Minima in Stochastic Gradient Descent}
 
 \author{Ning Yang}
 \thanks{These authors contributed equally to this work.}
@@ -42,7 +46,9 @@
 \affiliation{Center for Computational Biology \& Center for Computational Neuroscience, Flatiron Institute, New York, NY 10010, USA}
 
 \begin{abstract}
-    Stochastic gradient descent (SGD) is central to deep learning, yet the dynamical origin of its preference for flatter, more generalizable solutions remains unclear. Here, by analyzing SGD learning dynamics, we identify a nonequilibrium mechanism governing solution selection. Numerical experiments reveal a transient exploratory phase in which SGD trajectories repeatedly escape sharp valleys and transition toward flatter regions of the loss landscape. By using a tractable physical model, we show that the SGD noise reshapes the landscape into an effective potential that favors flat solutions. Crucially, we uncover a transient freezing mechanism: as training proceeds, growing energy barriers suppress inter-valley transitions and ultimately trap the dynamics within a single basin. Increasing the SGD noise strength delays this freezing, which enhances convergence to flatter minima. Together, these results provide a unified physical framework linking learning dynamics, loss-landscape geometry, and generalization, and suggest principles for the design of more effective optimization algorithms.
+    Stochastic gradient descent (SGD) is central to deep learning, yet the dynamical origin of its preference for flatter, more generalizable solutions remains unclear. Here, by analyzing SGD learning dynamics, we identify a nonequilibrium mechanism that governs solution selection during training. Numerical experiments reveal a transient exploratory phase in which SGD trajectories repeatedly escape sharp valleys and migrate toward flatter regions of the loss landscape before becoming confined to a final basin. Using a tractable physical model, we show that SGD noise reshapes the loss landscape into an effective potential that preferentially stabilizes flat solutions. We further uncover a transient freezing mechanism: as training progresses, growing energy barriers suppress inter-valley transitions and eventually trap the dynamics within a single basin. Stronger SGD noise delays this freezing transition, prolonging the exploratory phase and thereby increasing the probability of convergence to flatter minima. Together, these results provide a unified physical framework connecting learning dynamics, loss-landscape geometry, and generalization, and suggest guiding principles for the design of more effective optimization algorithms.
+
+    
 \end{abstract}
 
 \maketitle
@@ -90,7 +96,7 @@ Importantly, continuations started from later times show faster flatness growth 
 
 \subsection{The freezing transition}
 
-In the latter stage of the exploration phase, we found that valley jumping stops at a well-defined freezing time. To identify when inter-valley mobility is lost, we compared the continuation endpoints obtained from different times. Let $\hat{\bm{\theta}}_i$ denote the endpoint reached by deterministic continuation from time $t_i$. Before freezing, different times may lead to distinct continuation endpoints; after freezing, later continuations instead relax to mutually similar endpoints.
+In the latter stage of the exploration phase, we found that valley hopping stops at a well-defined freezing time. To identify when inter-valley mobility is lost, we compared the continuation endpoints obtained from different times. Let $\hat{\bm{\theta}}_i$ denote the endpoint reached by deterministic continuation from time $t_i$. Before freezing, different times may lead to distinct continuation endpoints; after freezing, later continuations instead relax to mutually similar endpoints.
 We quantify this endpoint similarity using the Jaccard similarity between their misclassified test sets,
 \begin{equation}
     \mathrm{Sim}_J(\hat{\bm{\theta}}_i,\hat{\bm{\theta}}_j)
@@ -124,7 +130,7 @@ This delayed freezing also affects the set of final solutions reached across rep
 \end{equation}
 where $\hat{\bm{\theta}}^{(n)}$ denotes the final endpoint of repeat $n$. Stronger-noise settings produce larger $r_\theta$ [Fig.~\ref{fig:freezing_control}(b)], showing that delayed freezing is associated with a broader set of accessible endpoints. The same ordering is observed for the mean final flatness [Fig.~\ref{fig:freezing_control}(c)], suggesting that this broader set is biased toward flatter regions. Although test accuracy varies only weakly in this small task, the accessibility towards broader and flatter endpoints increases the chance of finding a more generalizable solution, as showin by the improved best-of-repeats test accuracy in Fig.~\ref{fig:freezing_control}(d).
 
-Together, these results clarify the dual role of the SGD noise. Stronger SGD noise not only drives valley-jumping it also delays the freezing transition and thus extends the exploration phase favoring flatter minima.
+Together, these results clarify the dual role of the SGD noise. Stronger SGD noise not only drives valley-hopping it also delays the freezing transition and thus extends the exploration phase favoring flatter minima.
 
 \begin{figure}[!tbp]
 \centering
@@ -160,7 +166,7 @@ The learning dynamics follow the discrete-time update rule
 where $\bm{\xi}_t \sim \mathcal{N}(0, 2\sigma \mathbf{H}(\bm{\theta}_t))$ is Hessian-aligned anisotropic noise with strength $\sigma$ inversely dependent on batch size~\cite{fengInverseVarianceFlatness2021,zhuAnisotropicNoiseStochastic2019,xieDiffusionTheoryDeep2021,liHessianBasedAnalysis2020,yangStochasticGradientDescent2023}. The qualitative behavior is insensitive to the exact functional form; any monotonically increasing relationship between $\mathbf{\Sigma}$ and $\mathbf{H}$ yields the same qualitative results (see Sec.~II~B in Supplemental Material and Fig.~S6).
 
 
-Simulations of this model reproduce our key empirical findings. Starting from the two valleys with equal probabilities, we varied $\eta$ and $\sigma$ and measured the normalized mean freezing time $\eta \langle t_f \rangle$ ($t_f$ defined as the last valley-hopping iteration) and the probability of converging to the flatter valley $P_{\mathrm{flat}}$ (see Sec.~II~A in Supplemental Material). The normalized freezing time increases systematically with both $\eta$ and $\sigma$ [Fig.~\ref{fig:toy_model}(c)], paralleling our neural network experiments [compare with Fig.~\ref{fig:freezing_control}(a)]. Delayed freezing further increases the chance of ending in the flatter valley: as $\eta$ or $\sigma$ increases, $P_{\mathrm{flat}}$ rises sharply [Fig.~\ref{fig:toy_model}(d)], consistent with the empirical finding that stronger SGD noise leads to flatter final solutions [compare with Fig.~\ref{fig:freezing_control}(c)].
+Simulations of this simple model reproduce our key empirical findings. Starting from the two valleys with equal probabilities, we varied $\eta$ and $\sigma$ and measured the normalized mean freezing time $\eta \langle t_f \rangle$ ($t_f$ defined as the last valley-hopping iteration) and the probability of converging to the flatter valley $P_{\mathrm{flat}}$ (see Sec.~II~A in Supplemental Material). The normalized freezing time increases systematically with both $\eta$ and $\sigma$ [Fig.~\ref{fig:toy_model}(c)], paralleling our neural network experiments [compare with Fig.~\ref{fig:freezing_control}(a)]. Delayed freezing further increases the chance of ending in the flatter valley: as $\eta$ or $\sigma$ increases, $P_{\mathrm{flat}}$ rises sharply [Fig.~\ref{fig:toy_model}(d)], consistent with the empirical finding that stronger SGD noise leads to flatter final solutions [compare with Fig.~\ref{fig:freezing_control}(c)].
 
 Despite its simplicity, the two-valley model captures the essential features of the learning dynamics: the anisotropic landscape-dependent noise not only enables escape from sharper minima but also biases convergence toward flatter regions by extending the early transient exploration phase, thereby allowing the dynamics to settle preferentially into flatter solution valleys. We next develop an analytical theory for valley selection in this model. The analysis proceeds in two steps: we first derive a quasi-steady-state bias toward flatter valleys at fixed $y$, and then show that transient freezing dynamics determine where along the $y$-direction this bias is ultimately frozen in.
 
@@ -207,13 +213,10 @@ Since $\gamma > 1$, this correction lowers the effective loss near the flat mini
 \includegraphics[width=0.98\textwidth]{Figures_revision/Fig4_analytical_model.pdf}
 \caption{Analytical two-valley model for SGD-induced valley selection.
 (a) Anisotropic SGD noise reshapes the original loss $\mathcal{L}(x,y)$ (blue solid line) into an effective loss $\mathcal{L}_{\mathrm{eff}}(x,y)$ (red solid line) by adding a correction term $\mathcal{L}_{\mathrm{SGD}}(x,y)$ (red dashed line). 
-{\color{blue}(b) Representative stochastic trajectories in the two-valley landscape (top) and the corresponding ensemble flat-valley probability $P_{\mathrm{flat}}(y)$ (bottom) for different effective noise strengths $\Delta_S$. In the trajectory plot, the dashed line marks the ridge at $x=0$ and the gray curves show contours of the loss landscape. The equilibrium reference $P_{\mathrm{flat}}^{\mathrm{eq}}= (1+\gamma^{-1})^{-1}$ is marked by the gray dash-dotted line.
-(c) Steady-state flat-valley probability $P_{\mathrm{flat}}^{\mathrm{ss,SGD}}(y,\Delta_S)$ from Eq.~\ref{eq:ss_SGD}. The red curve indicates the freezing boundary $y_{\mathrm{freeze}}(\Delta_S)$ estimated from Eq.~\ref{eq:y_freeze}. The black dashed line marks a fixed-$y$ slice at $y=5$.}}
+(b) Representative stochastic trajectories in the two-valley landscape (top) and the corresponding ensemble flat-valley probability $P_{\mathrm{flat}}(y)$ (bottom) for different effective noise strengths $\Delta_S$. In the trajectory plot, the dashed line marks the ridge at $x=0$ and the gray curves show contours of the loss landscape. The equilibrium reference $P_{\mathrm{flat}}^{\mathrm{eq}}= (1+\gamma^{-1})^{-1}$ is marked by the gray dash-dotted line.
+(c) Steady-state flat-valley probability $P_{\mathrm{flat}}^{\mathrm{ss,SGD}}(y,\Delta_S)$ from Eq.~\ref{eq:ss_SGD}. The red curve indicates the freezing transition boundary $y_{\mathrm{freeze}}(\Delta_S)$ estimated from Eq.~\ref{eq:y_freeze}, which separate the exploration phase (below) from the frozen phase (above). The black dashed line marks a fixed-$y$ slice at $y=5$. {\color{red} If possible, it would be good to show $y_{freeze}$ (mean$\pm$ std) from direct simulation for a few values of $\Delta_S$ in panel C to compare with analytical result. A minor point: Can we make "Freezing transition" two lines (Freezing above transition) and more visible? Also, maybe we can make the red arrow pointing with an angle (not vertical)? }}
 \label{fig:analytical_results}
 \end{figure*}
-
-
-{\color{blue}Figure~\ref{fig:analytical_results}(b) provides the simulation counterpart of this reduced model. Individual trajectories initially cross the ridge at $x=0$ and later remain within one valley, while the ensemble probability $P_{\mathrm{flat}}(y)$ evolves with the slow coordinate $y$. These observations motivate treating valley selection as a combination of a fast quasi-steady-state bias at fixed $y$ and a separate freezing condition along the slowly evolving direction.}
 
 Applying Kramers’ rate theory to estimate the inter-valley escape rates (see Appendix~\ref{sec:appendix3} for details), the steady-state probability of residing in the flat valley is:
 \begin{equation}
@@ -228,12 +231,17 @@ Applying Kramers’ rate theory to estimate the inter-valley escape rates (see A
 \end{equation}
 where $\Delta\mathcal{L}(y)$ is the common barrier height (Appendix~\ref{sec:appendix0}) and $\mathrm{erfi}(\cdot)$ denotes the imaginary error function. Because $\mathrm{erfi}(\cdot)$ is monotonically increasing, $P_{\mathrm{flat}}^{\mathrm{ss,SGD}}$ always exceeds its equilibrium counterpart $P_{\mathrm{flat}}^{\mathrm{eq}} = (1+\gamma^{-1})^{-1}$, confirming that anisotropic SGD noise enhances the preference for the flatter valley, consistent with previous work~\cite{xieDiffusionTheoryDeep2021}.
 
+This prediction is illustrated by the simulations in Fig.~\ref{fig:analytical_results}(b). The ensemble probability $P_{\mathrm{flat}}(y)$ stays above the equilibrium reference $P_{\mathrm{flat}}^{\mathrm{eq}}$ throughout, in agreement with Eq.~\ref{eq:ss_SGD}. Individual trajectories cross the ridge at $x=0$ stochastically at small $y$, but become confined to a single valley as $y$ grows, so that $P_{\mathrm{flat}}(y)$ stops evolving, resulting in the freezing phase. The steady-state result of Eq.~\ref{eq:ss_SGD} therefore applies only while the system remains in the active exploration (valley-hopping) phase; the final valley is selected once inter-valley hopping freezes at a particular value of $y$. We next examine how this freezing point, and hence the final solution, is determined.
+
 % \subsection{Stronger SGD noise delays freezing and enhances search for flatter valleys}
 \subsection{Noise-delayed freezing selects the final solution}
 At fixed $y$, Eq.~\ref{eq:ss_SGD} predicts that increasing $\Delta_S$ weakens the preference for the flatter valley---seemingly contradicting both our empirical results [Fig.~\ref{fig:freezing_control}(c)] and simulations [Fig.~\ref{fig:toy_model}(d)]. This apparent paradox arises because the effective loss (Eq.~\ref{eq:effective_loss_SGD}) is independent of $\Delta_S$; at fixed $y$, raising the effective temperature would reduce the probability of selecting the flatter solution. The resolution lies in the transient dynamics of $y$: the value of $y$ at which Eq.~\ref{eq:ss_SGD} ultimately applies depends on $\Delta_S$.
-{\color{blue}This distinction is illustrated in Fig.~\ref{fig:analytical_results}(c). Along a fixed-$y$ slice (black dashed line), increasing $\Delta_S$ lowers the steady-state flat-valley probability predicted by Eq.~\ref{eq:ss_SGD}. The transient dynamics relevant for final selection instead follows the freezing boundary (red curve): it does not freeze at a common value of $y$ for all noise strengths, and stronger noise shifts the freezing point to larger $y$.}
 
-Early in learning, when barriers are low, inter-valley transitions are frequent and the distribution rapidly equilibrates via Eq.~\ref{eq:ss_SGD}. As $y$ increases, the growing barrier height and the increasing valley flatness progressively suppress escape, until the system reaches a freezing point $y_{\mathrm{freeze}}$ where transitions effectively cease {\color{blue}[Fig.~\ref{fig:analytical_results}(b,c)]}. The final valley occupation is set by the quasi-steady-state distribution frozen at this point:
+This distinction is illustrated in Fig.~\ref{fig:analytical_results}(c). Along a fixed-$y$ slice (black dashed line), increasing $\Delta_S$ lowers the steady-state flat-valley probability predicted by Eq.~\ref{eq:ss_SGD}. The transient dynamics relevant for final selection instead follows the freezing boundary (red curve): it does not freeze at a common value of $y$ for all noise strengths, and stronger noise shifts the freezing point to larger $y$. Since $y$ increases monotonically as training proceeds, the freezing time $t_f$ measured in our experiments and simulations maps onto a freezing location $y_{\mathrm{freeze}} \equiv y(t_f)$, in terms of which the transient theory is most naturally formulated.
+
+
+
+Early in learning, when barriers are low, inter-valley transitions are frequent and the distribution rapidly equilibrates via Eq.~\ref{eq:ss_SGD}. As $y$ increases, the growing barrier height and the increasing valley flatness progressively suppress escape, until the system reaches a freezing point $y_{\mathrm{freeze}}$ where transitions effectively stop [Fig.~\ref{fig:analytical_results}(b,c)]. The final valley occupation is set by the quasi-steady-state distribution frozen at this point:
 \begin{equation}
 P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx
 \left[1+\gamma^{-\frac{1}{2}}
@@ -241,7 +249,7 @@ P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx
 \left(\frac{y_\mathrm{freeze}}{y_b+y_\mathrm{freeze}}\right)^2\right)\right]^{-1}.
 \label{eq:tr_SGD_original}
 \end{equation}
-Crucially, $y_\mathrm{freeze}$ increases with $\Delta_S$: stronger noise keeps the system mobile for longer, delaying the freezing point. Within the asymptotic regime where the escape-rate prefactor varies slowly compared with the exponential barrier factor, the freezing criterion gives the scaling estimate (see Appendix~\ref{sec:appendix4} for derivation):
+Crucially, $y_\mathrm{freeze}$ increases with $\Delta_S$: stronger noise keeps the system mobile for longer, delaying the freezing point. Within the asymptotic regime where the escape-rate prefactor varies slowly compared with the exponential barrier factor, the freezing criterion gives the estimate (see Appendix~\ref{sec:appendix4} for derivation):
 \begin{equation}
 y_\mathrm{freeze} \approx y_b \cdot \frac{\sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}}{x_2 - \sqrt{\Delta_S \ln\left( \frac{\Delta_S}{\varepsilon^2 \Phi^2} \right)}},
 \label{eq:y_freeze}
@@ -251,7 +259,7 @@ where $\varepsilon$ is a small constant and $\Phi$ is an effective constant abso
 P_{\mathrm{flat}}^{\mathrm{tr,SGD}} \approx \left[ 1 + \gamma^{-\frac{1}{2}} \left( \frac{\sqrt{\Delta_S}}{\varepsilon \Phi} \right)^{1-\gamma} \right]^{-1},
 \label{eq:tr_SGD}
 \end{equation}
-which, since $\gamma > 1$, shows that $P_{\mathrm{flat}}$ increases monotonically with noise strength within the same freezing-approximation regime. {\color{blue}In Fig.~\ref{fig:analytical_results}(c), this corresponds to moving along the red freezing boundary rather than along a fixed-$y$ slice.} Thus, while stronger noise reduces the static preference at fixed $y$, this effect is dominated by delayed freezing: the system explores longer and ultimately settles in the flatter valley with greater probability, resolving the apparent paradox.
+which, since $\gamma > 1$, shows that $P_{\mathrm{flat}}$ increases monotonically with noise strength within the same freezing-approximation regime. In Fig.~\ref{fig:analytical_results}(c), this corresponds to moving along the red freezing transition boundary rather than along a fixed-$y$ slice. Thus, while stronger noise reduces the static preference at fixed $y$, this effect is dominated by delayed freezing: the system explores longer and ultimately settles in the flatter valley with greater probability, resolving the apparent paradox.
 
 
 

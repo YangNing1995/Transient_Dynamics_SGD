@@ -279,7 +279,7 @@ end
 % plot(logDS_grid, yf_line, '-', 'Color', 'w', 'LineWidth', 4.5, ...
 %     'HandleVisibility', 'off');
 plot(logDS_grid, yf_line, '-', 'Color', [0.85 0.2 0.2], 'LineWidth', 2.5, ...
-    'DisplayName', '$y_\mathrm{freeze}(\Delta_S)$');
+    'DisplayName', 'Theoretical $y_\mathrm{freeze}(\Delta_S)$');
 
 y_ref = 5;
 plot(logDS_grid([1 end]), [y_ref y_ref], '--', 'Color', 'k', 'LineWidth', 1.8, ...
@@ -299,6 +299,34 @@ legend('Location', 'northwest', 'Interpreter', 'LaTeX', 'FontSize', 13, ...
        'Box', 'on', 'TextColor', 'k');
 box on;
 save_panel(figC, fullfile(out_dir, 'Fig4C_paradox.png'), export_res);
+
+% --- 4. Optional variant: overlay direct-simulation y_freeze mean +/- std -
+sim_data_path = fullfile(repo_root, 'Two_valleys_model', 'Fig4_simulation_data.mat');
+sim_cache_path = fullfile(out_dir, 'Fig4C_yfreeze_direct_stats_cache.mat');
+target_DS_for_C = logspace(-4, log10(4e-3), 6);
+target_sigmas_for_C = target_DS_for_C ./ learning_rate_default();
+n_rep_yfreeze_stats = 40;
+
+[sim_DS, sim_yf_mean, sim_yf_std] = get_direct_yfreeze_stats( ...
+    sim_data_path, sim_cache_path, target_sigmas_for_C, ...
+    learning_rate_default(), 1, 1e5, n_rep_yfreeze_stats, ...
+    L, dLdx, dLdy, Hessian);
+
+figC_sim = copyobj(figC, 0);
+set(figC_sim, 'Position', [650 100 520 400]);
+axC_sim = findobj(figC_sim, 'Type', 'axes');
+axes(axC_sim(1));
+hold on;
+h_sim_yf = errorbar(log10(sim_DS), sim_yf_mean, sim_yf_std, 'o', ...
+    'Color', 'k', 'MarkerFaceColor', 'w', 'MarkerEdgeColor', 'k', ...
+    'MarkerSize', 6.5, 'LineWidth', 1.4, 'CapSize', 7, ...
+    'DisplayName', 'Simulated $y_\mathrm{freeze}(\Delta_S)$');
+h_theory_yf = findobj(axC_sim(1), 'DisplayName', 'Theoretical $y_\mathrm{freeze}(\Delta_S)$');
+h_fixed_y = findobj(axC_sim(1), 'DisplayName', sprintf('Fixed $y{=}%d$', y_ref));
+legend([h_fixed_y(1), h_theory_yf(1), h_sim_yf], ...
+       'Location', 'northwest', 'Interpreter', 'LaTeX', 'FontSize', 12, ...
+       'Box', 'on', 'TextColor', 'k');
+save_panel(figC_sim, fullfile(out_dir, 'Fig4C_paradox_with_sim_yfreeze.png'), export_res);
 
 fprintf('\nExported revised Fig4 panels to:\n  %s\n', out_dir);
 
@@ -362,4 +390,92 @@ function trajectory = sgd_2d(Loss, grad_x, grad_y, Hessian, initial_pos, learnin
         y = y - learning_rate * (dy + noise(2));
         trajectory(i+1, :) = [x, y];
     end
+end
+
+function eta = learning_rate_default()
+    eta = 0.01;
+end
+
+function [DeltaS, yf_mean, yf_std] = get_direct_yfreeze_stats( ...
+        sim_data_path, cache_path, target_sigmas, learning_rate, yi, ...
+        iterations, num_rep, Loss, grad_x, grad_y, Hessian)
+
+    if exist(sim_data_path, 'file')
+        data = load(sim_data_path);
+        if isfield(data, 'learning_rate')
+            learning_rate = data.learning_rate;
+        end
+        if isfield(data, 'yi')
+            yi = data.yi;
+        end
+        if isfield(data, 'iterations')
+            iterations = data.iterations;
+        end
+        if isfield(data, 'sigma_list') && isfield(data, 'y_freeze_all') && isfield(data, 'y_freeze_std_all')
+            [DeltaS, yf_mean, yf_std] = select_saved_yfreeze_stats(data, target_sigmas, learning_rate);
+            return;
+        end
+    end
+
+    cache_matches = false;
+    if exist(cache_path, 'file')
+        cached = load(cache_path);
+        cache_matches = isfield(cached, 'target_sigmas') && ...
+            isequal(size(cached.target_sigmas), size(target_sigmas)) && ...
+            all(abs(cached.target_sigmas - target_sigmas) < 1e-12) && ...
+            isfield(cached, 'learning_rate') && cached.learning_rate == learning_rate && ...
+            isfield(cached, 'yi') && cached.yi == yi && ...
+            isfield(cached, 'iterations') && cached.iterations == iterations && ...
+            isfield(cached, 'num_rep') && cached.num_rep == num_rep;
+    end
+    if cache_matches
+        DeltaS = cached.DeltaS;
+        yf_mean = cached.yf_mean;
+        yf_std = cached.yf_std;
+        return;
+    end
+
+    fprintf('\nComputing direct-simulation y_freeze stats for Fig4C variant (%d repeats each)...\n', num_rep);
+    rng(4, 'twister');
+    DeltaS = learning_rate .* target_sigmas;
+    yf_samples = nan(numel(target_sigmas), num_rep);
+
+    for is = 1:numel(target_sigmas)
+        sigma = target_sigmas(is);
+        for ir = 1:num_rep
+            if mod(ir, 2) == 1
+                init_pos = [-0.01, yi];
+            else
+                init_pos = [0.01, yi];
+            end
+            traj = sgd_2d(Loss, grad_x, grad_y, Hessian, ...
+                init_pos, learning_rate, iterations, sigma);
+            x = traj(:, 1);
+            crossing_idx = find(diff(sign(x)) ~= 0);
+            if isempty(crossing_idx)
+                tf = 1;
+            else
+                tf = crossing_idx(end) + 1;
+            end
+            yf_samples(is, ir) = traj(tf, 2);
+        end
+        fprintf('  sigma=%.3g  Delta_S=%.2e  y_freeze=%.2f +/- %.2f\n', ...
+            sigma, DeltaS(is), mean(yf_samples(is, :), 'omitnan'), std(yf_samples(is, :), 'omitnan'));
+    end
+
+    yf_mean = mean(yf_samples, 2, 'omitnan');
+    yf_std = std(yf_samples, 0, 2, 'omitnan');
+    save(cache_path, 'target_sigmas', 'learning_rate', 'yi', 'iterations', ...
+        'num_rep', 'DeltaS', 'yf_mean', 'yf_std', 'yf_samples');
+end
+
+function [DeltaS, yf_mean, yf_std] = select_saved_yfreeze_stats(data, target_sigmas, learning_rate)
+    yf_mean = nan(numel(target_sigmas), 1);
+    yf_std = nan(numel(target_sigmas), 1);
+    for is = 1:numel(target_sigmas)
+        [~, idx] = min(abs(data.sigma_list - target_sigmas(is)));
+        yf_mean(is) = data.y_freeze_all(idx);
+        yf_std(is) = data.y_freeze_std_all(idx);
+    end
+    DeltaS = learning_rate .* target_sigmas(:);
 end

@@ -20,7 +20,7 @@
 %% =========================================================
 % It's common to repeat the title with "Supplemental Material for"
 
-\title{Supplemental Material:\\Transient Freezing Governs Flat-Minimum Selection in Stochastic Gradient Descent}
+\title{Supplemental Material:\\Noise-Driven Exploration and Transient Freezing Select Flat Minima in Stochastic Gradient Descent}
 
 \author{Ning Yang}
 \thanks{These authors contributed equally to this work.}
@@ -230,6 +230,8 @@ We quantified the dynamics using two key metrics:
     \item \textbf{Freezing time ($t_f$):} The iteration index of the final sign change in the $x$-coordinate (i.e., the last crossing of the ridge at $x=0$).
 \end{enumerate}
 The resulting phase diagrams characterizing these dynamics are presented in Fig.~3(c) and~3(d) of the main text.
+
+For the direct simulations shown in Fig.~4(b,c) of the main text, we used the same two-valley landscape and SGD update rule but fixed the learning rate at $\eta=0.01$ and initialized trajectories at $y_0=1$, with $x_0$ alternating between $-0.01$ and $+0.01$. Each trajectory was run for $10^5$ iterations. The ensemble curves in Fig.~4(b) were obtained from $1000$ independent trajectories for each displayed noise strength. To compare the analytical freezing boundary with direct simulations in Fig.~4(c), we estimated $y_{\mathrm{freeze}}$ as the value of the slow coordinate $y$ at the final sign change of $x_t$ along each trajectory. The simulated points show the mean and standard deviation of $y_{\mathrm{freeze}}$ over $40$ independent trajectories for logarithmically spaced effective noise levels $\Delta_S=\eta\sigma$ between $10^{-4}$ and $4\times10^{-3}$.
 
 % \subsection{Results of the \texorpdfstring{$\Sigma\propto\mathbf{H}^2$}{Sigma proportional to H squared} case}
 

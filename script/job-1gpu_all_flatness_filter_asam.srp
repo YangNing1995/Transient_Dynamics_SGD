@@ -1,0 +1,214 @@
+#!/bin/bash
+#SBATCH -J flat_all
+#SBATCH -p gpu_4l
+#SBATCH -N 1
+#SBATCH -o ../err_out/flatness_filter_asam_%j.out
+#SBATCH -e ../err_out/flatness_filter_asam_%j.err
+#SBATCH --no-requeue
+#SBATCH -A tangc_g1
+#SBATCH --qos=tangcg4c
+#SBATCH --gres=gpu:1
+#SBATCH --overcommit
+#SBATCH --mincpus=7
+
+source /appsnew/source/Tensorflow1.13_Keras2.2_Pytorch1.1_py3.7.3_cuda9.sh
+# source /appsnew/source/Tensorflow2.5.0rc1_Keras2.4.3_keras-nightly2.5.0_torch1.8.1_py3.9.4_cuda11.2.2.sh
+set -euo pipefail
+
+CODE_DIR=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/Numerical_experiments
+DATA_ROOT=${CODE_DIR}/data
+CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_v2
+OUTPUT_BASE=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/relative_sharpness_all_ce
+
+SUBDIR_TEMPLATE='bs{batch_size}_lr{learning_rate:g}_repeat{repeat}'
+LR_LIST=(0.001 0.002 0.005 0.01 0.02 0.05 0.1)
+BS_LIST_MAIN=(10 20 50 100 200 500)
+BS_LIST_REF=(1000)
+
+RHO=0.05
+NUM_DIRECTIONS=20
+ADAPTIVE_EPSILON=1e-12
+
+DEFINITIONS=(random_filter asam_element)
+
+mkdir -p "${OUTPUT_BASE}"
+cd "${CODE_DIR}"
+JOB_START=$(date +%s)
+
+run_timed () {
+  LABEL="$1"
+  shift
+  START=$(date +%s)
+  echo "==== ${LABEL} started at $(date) ===="
+  "$@"
+  STATUS=$?
+  END=$(date +%s)
+  echo "==== ${LABEL} finished at $(date); elapsed $((END - START)) seconds; status ${STATUS} ===="
+  return ${STATUS}
+}
+
+require_summary_ok () {
+  SUMMARY="$1"
+  EXPECT_ROWS="$2"
+  if [ ! -f "${SUMMARY}" ]; then
+    echo "ERROR: required summary is missing: ${SUMMARY}" >&2
+    exit 1
+  fi
+  python - "$SUMMARY" "$EXPECT_ROWS" <<'PY'
+import csv
+import sys
+
+summary_path = sys.argv[1]
+expect_rows = int(sys.argv[2])
+with open(summary_path, newline="") as f:
+    rows = list(csv.DictReader(f))
+
+bad = [row for row in rows if row.get("status") != "ok"]
+if bad:
+    print("ERROR: non-ok rows in {}".format(summary_path), file=sys.stderr)
+    for row in bad[:20]:
+        print(
+            "  bs={batch_size} lr={learning_rate} repeat={repeat} status={status} message={message}".format(**row),
+            file=sys.stderr,
+        )
+    if len(bad) > 20:
+        print("  ... {} more".format(len(bad) - 20), file=sys.stderr)
+    sys.exit(1)
+
+if len(rows) != expect_rows:
+    print(
+        "ERROR: expected {} rows, found {} rows in {}".format(expect_rows, len(rows), summary_path),
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+total_wall = sum(float(row.get("wall_time_sec") or 0.0) for row in rows)
+mean_sharp = sum(float(row.get("sharpness_mean_positive_delta") or 0.0) for row in rows) / len(rows)
+definition = rows[0].get("definition", "")
+print(
+    "OK summary: definition={} rows={} total_wall_sec={:.1f} mean_sharpness={:.6g}".format(
+        definition, len(rows), total_wall, mean_sharp
+    )
+)
+PY
+}
+
+run_definition () {
+  DEFINITION="$1"
+  if [ "${DEFINITION}" = "random_filter" ]; then
+    OUTPUT_ROOT=${OUTPUT_BASE}/random_filter_rho0.05_k20
+  elif [ "${DEFINITION}" = "asam_element" ]; then
+    OUTPUT_ROOT=${OUTPUT_BASE}/asam_element_rho0.05
+  else
+    echo "ERROR: unsupported definition ${DEFINITION}" >&2
+    exit 1
+  fi
+
+  mkdir -p "${OUTPUT_ROOT}"
+  echo "============================================================"
+  echo "Running definition=${DEFINITION}"
+  echo "Output root: ${OUTPUT_ROOT}"
+  echo "============================================================"
+
+  COMMON_ARGS="\
+    --data_dir ${DATA_ROOT} \
+    --checkpoint_dir ${CHECKPOINT_ROOT} \
+    --checkpoint_subdir_template ${SUBDIR_TEMPLATE} \
+    --output_dir ${OUTPUT_ROOT} \
+    --checkpoint_iteration auto \
+    --loss_type ce \
+    --definition ${DEFINITION} \
+    --rho ${RHO} \
+    --num_directions ${NUM_DIRECTIONS} \
+    --adaptive_epsilon ${ADAPTIVE_EPSILON} \
+    --max_train_batches -1"
+
+  run_timed "dry_run_${DEFINITION}_main_bs10_to_500" python "${CODE_DIR}/compute_relative_sharpness.py" \
+    ${COMMON_ARGS} \
+    --batch_sizes "${BS_LIST_MAIN[@]}" \
+    --learning_rates "${LR_LIST[@]}" \
+    --repeat_start 1 \
+    --repeat_end 20 \
+    --dry_run
+
+  run_timed "dry_run_${DEFINITION}_bs1000" python "${CODE_DIR}/compute_relative_sharpness.py" \
+    ${COMMON_ARGS} \
+    --batch_sizes "${BS_LIST_REF[@]}" \
+    --learning_rates "${LR_LIST[@]}" \
+    --repeat_start 1 \
+    --repeat_end 1 \
+    --dry_run
+
+  run_timed "${DEFINITION}_main_bs10_to_500" python "${CODE_DIR}/compute_relative_sharpness.py" \
+    ${COMMON_ARGS} \
+    --batch_sizes "${BS_LIST_MAIN[@]}" \
+    --learning_rates "${LR_LIST[@]}" \
+    --repeat_start 1 \
+    --repeat_end 20
+
+  run_timed "${DEFINITION}_bs1000" python "${CODE_DIR}/compute_relative_sharpness.py" \
+    ${COMMON_ARGS} \
+    --batch_sizes "${BS_LIST_REF[@]}" \
+    --learning_rates "${LR_LIST[@]}" \
+    --repeat_start 1 \
+    --repeat_end 1
+
+  SUMMARY="${OUTPUT_ROOT}/relative_sharpness_summary.csv"
+  require_summary_ok "${SUMMARY}" 847
+
+  echo "Final grouped summary for ${DEFINITION}:"
+  python - "${SUMMARY}" <<'PY'
+import csv
+import collections
+import sys
+
+summary_path = sys.argv[1]
+with open(summary_path, newline="") as f:
+    rows = list(csv.DictReader(f))
+
+by_bs = collections.defaultdict(list)
+by_lr = collections.defaultdict(list)
+for row in rows:
+    by_bs[row["batch_size"]].append(row)
+    by_lr[row["learning_rate"]].append(row)
+
+def mean(rows, field):
+    vals = [float(row[field]) for row in rows if row.get(field)]
+    return sum(vals) / len(vals) if vals else float("nan")
+
+print("By batch size:")
+for bs in sorted(by_bs, key=lambda x: int(x)):
+    rows_bs = by_bs[bs]
+    print(
+        "  bs={} rows={} sharp={:.6g} flat_inv={:.6g} test_acc={:.4f}".format(
+            bs,
+            len(rows_bs),
+            mean(rows_bs, "sharpness_mean_positive_delta"),
+            mean(rows_bs, "relative_flatness_inverse"),
+            mean(rows_bs, "base_test_accuracy"),
+        )
+    )
+
+print("By learning rate:")
+for lr in sorted(by_lr, key=float):
+    rows_lr = by_lr[lr]
+    print(
+        "  lr={} rows={} sharp={:.6g} flat_inv={:.6g} test_acc={:.4f}".format(
+            lr,
+            len(rows_lr),
+            mean(rows_lr, "sharpness_mean_positive_delta"),
+            mean(rows_lr, "relative_flatness_inverse"),
+            mean(rows_lr, "base_test_accuracy"),
+        )
+    )
+PY
+}
+
+echo "Full random_filter + asam_element flatness job"
+echo "rho=${RHO}, K=${NUM_DIRECTIONS}, loss=ce"
+
+for DEFINITION in "${DEFINITIONS[@]}"; do
+  run_definition "${DEFINITION}"
+done
+
+echo "All requested flatness definitions complete at $(date); elapsed $(( $(date +%s) - JOB_START )) seconds"

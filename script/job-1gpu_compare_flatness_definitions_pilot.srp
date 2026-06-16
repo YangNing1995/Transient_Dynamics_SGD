@@ -1,0 +1,111 @@
+#!/bin/bash
+#SBATCH -J flatpilot
+#SBATCH -p gpu_4l
+#SBATCH -N 1
+#SBATCH -o ../err_out/flatness_pilot_%j.out
+#SBATCH -e ../err_out/flatness_pilot_%j.err
+#SBATCH --no-requeue
+#SBATCH -A tangc_g1
+#SBATCH --qos=tangcg4c
+#SBATCH --gres=gpu:1
+#SBATCH --overcommit
+#SBATCH --mincpus=7
+
+source /appsnew/source/Tensorflow1.13_Keras2.2_Pytorch1.1_py3.7.3_cuda9.sh
+# source /appsnew/source/Tensorflow2.5.0rc1_Keras2.4.3_keras-nightly2.5.0_torch1.8.1_py3.9.4_cuda11.2.2.sh
+set -euo pipefail
+
+CODE_DIR=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/Numerical_experiments
+DATA_ROOT=${CODE_DIR}/data
+CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_v2
+OUTPUT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/flatness_definition_pilot/rho0.05_k20
+
+SUBDIR_TEMPLATE='bs{batch_size}_lr{learning_rate:g}_repeat{repeat}'
+
+# A small stable set spanning low/intermediate/high effective noise.
+CONDITIONS=(
+  50:0.05:2
+  20:0.02:1
+  100:0.002:1
+  200:0.01:1
+)
+
+# Positive-homogeneous ReLU rescalings. All represent the same function.
+SCALE_PAIRS=(
+  1:1
+  4:0.25
+  0.25:4
+  10:0.1
+  0.1:10
+  4:4
+  0.25:0.25
+)
+
+DEFINITIONS=(
+  random_global
+  random_tensor
+  random_filter
+  sam_global
+  asam_tensor
+  asam_element
+)
+
+RHO=0.05
+NUM_DIRECTIONS=20
+
+mkdir -p "${OUTPUT_ROOT}"
+cd "${CODE_DIR}"
+JOB_START=$(date +%s)
+
+run_timed () {
+  LABEL="$1"
+  shift
+  START=$(date +%s)
+  echo "==== ${LABEL} started at $(date) ===="
+  "$@"
+  STATUS=$?
+  END=$(date +%s)
+  echo "==== ${LABEL} finished at $(date); elapsed $((END - START)) seconds; status ${STATUS} ===="
+  return ${STATUS}
+}
+
+COMMON_ARGS="\
+  --data_dir ${DATA_ROOT} \
+  --checkpoint_dir ${CHECKPOINT_ROOT} \
+  --checkpoint_subdir_template ${SUBDIR_TEMPLATE} \
+  --output_dir ${OUTPUT_ROOT} \
+  --conditions ${CONDITIONS[*]} \
+  --scale_pairs ${SCALE_PAIRS[*]} \
+  --definitions ${DEFINITIONS[*]} \
+  --checkpoint_iteration auto \
+  --loss_type ce \
+  --rho ${RHO} \
+  --num_directions ${NUM_DIRECTIONS} \
+  --max_train_batches -1"
+
+echo "Flatness-definition pilot"
+echo "Output root: ${OUTPUT_ROOT}"
+echo "Conditions: ${CONDITIONS[*]}"
+echo "Scale pairs: ${SCALE_PAIRS[*]}"
+echo "Definitions: ${DEFINITIONS[*]}"
+
+run_timed "dry_run" python "${CODE_DIR}/compare_flatness_definitions.py" \
+  ${COMMON_ARGS} \
+  --dry_run
+
+run_timed "flatness_pilot" python "${CODE_DIR}/compare_flatness_definitions.py" \
+  ${COMMON_ARGS} \
+  --overwrite
+
+SUMMARY="${OUTPUT_ROOT}/flatness_definition_scale_summary.csv"
+DETAIL="${OUTPUT_ROOT}/flatness_definition_pilot.csv"
+
+if [ ! -f "${SUMMARY}" ] || [ ! -f "${DETAIL}" ]; then
+  echo "ERROR: expected output files are missing." >&2
+  exit 1
+fi
+
+echo "Scale sensitivity summary:"
+cat "${SUMMARY}"
+
+echo "Flatness-definition pilot complete at $(date); elapsed $(( $(date +%s) - JOB_START )) seconds"

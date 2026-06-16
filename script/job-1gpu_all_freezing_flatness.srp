@@ -1,0 +1,182 @@
+#!/bin/bash
+#SBATCH -J frzflat
+#SBATCH -p gpu_4l
+#SBATCH -N 1
+#SBATCH -o ../err_out/freezing_flatness_all_%j.out
+#SBATCH -e ../err_out/freezing_flatness_all_%j.err
+#SBATCH --no-requeue
+#SBATCH -A tangc_g1
+#SBATCH --qos=tangcg4c
+#SBATCH --gres=gpu:1
+#SBATCH --overcommit
+#SBATCH --mincpus=7
+
+# Hessian calculation needs torch.autograd.functional/functional_call support;
+# the older PyTorch 1.1 environment used for random-filter flatness is not enough.
+# source /appsnew/source/Tensorflow1.13_Keras2.2_Pytorch1.1_py3.7.3_cuda9.sh
+source /appsnew/source/Tensorflow2.5.0rc1_Keras2.4.3_keras-nightly2.5.0_torch1.8.1_py3.9.4_cuda11.2.2.sh
+set -euo pipefail
+
+CODE_DIR=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/Numerical_experiments
+CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_v2
+FREEZING_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_all_ce/jaccard095
+OUTPUT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_hessian_flatness_all_ce/top10_layer2_ceil
+
+SUBDIR_TEMPLATE='bs{batch_size}_lr{learning_rate:g}_repeat{repeat}'
+LR_LIST=(0.001 0.002 0.005 0.01 0.02 0.05 0.1)
+BS_LIST_MAIN=(10 20 50 100 200 500)
+BS_LIST_REF=(1000)
+
+HESSIAN_TOPK=10
+HESSIAN_LAYER_INDEX=2
+
+DATA_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/data
+if [ ! -d "${DATA_ROOT}/MNIST" ]; then
+  echo "ERROR: MNIST data directory not found at ${DATA_ROOT}/MNIST" >&2
+  exit 1
+fi
+
+mkdir -p "${OUTPUT_ROOT}"
+cd "${CODE_DIR}"
+JOB_START=$(date +%s)
+
+run_timed () {
+  LABEL="$1"
+  shift
+  START=$(date +%s)
+  echo "==== ${LABEL} started at $(date) ===="
+  "$@"
+  STATUS=$?
+  END=$(date +%s)
+  echo "==== ${LABEL} finished at $(date); elapsed $((END - START)) seconds; status ${STATUS} ===="
+  return ${STATUS}
+}
+
+require_summary_ok () {
+  SUMMARY="$1"
+  EXPECT_ROWS="$2"
+  if [ ! -f "${SUMMARY}" ]; then
+    echo "ERROR: required summary is missing: ${SUMMARY}" >&2
+    exit 1
+  fi
+  python - "$SUMMARY" "$EXPECT_ROWS" <<'PY'
+import csv
+import sys
+from collections import defaultdict
+
+summary_path = sys.argv[1]
+expect_rows = int(sys.argv[2])
+with open(summary_path, newline="") as f:
+    rows = list(csv.DictReader(f))
+
+bad = [row for row in rows if row.get("status") != "ok"]
+if bad:
+    print("ERROR: non-ok rows in {}".format(summary_path), file=sys.stderr)
+    for row in bad[:20]:
+        print(
+            "  bs={batch_size} lr={learning_rate} repeat={repeat} status={status} message={message}".format(**row),
+            file=sys.stderr,
+        )
+    if len(bad) > 20:
+        print("  ... {} more".format(len(bad) - 20), file=sys.stderr)
+    sys.exit(1)
+
+if len(rows) != expect_rows:
+    print(
+        "ERROR: expected {} rows, found {} rows in {}".format(expect_rows, len(rows), summary_path),
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+total_wall = sum(float(row.get("wall_time_sec") or 0.0) for row in rows)
+mean_flat = sum(float(row.get("hessian_flatness") or 0.0) for row in rows) / len(rows)
+mean_train_acc = sum(float(row.get("base_train_accuracy") or 0.0) for row in rows) / len(rows)
+print(
+    "OK summary: rows={} total_wall_sec={:.1f} mean_hessian_flatness={:.4g} mean_train_acc={:.4f}".format(
+        len(rows), total_wall, mean_flat, mean_train_acc
+    )
+)
+
+by_lr = defaultdict(list)
+by_bs = defaultdict(list)
+for row in rows:
+    by_lr[row["learning_rate"]].append(row)
+    by_bs[row["batch_size"]].append(row)
+
+def mean(group, field):
+    vals = [float(row[field]) for row in group if row.get(field)]
+    return sum(vals) / len(vals) if vals else float("nan")
+
+print("By learning rate:")
+for lr in sorted(by_lr, key=float):
+    group = by_lr[lr]
+    print(
+        "  lr={} rows={} flat={:.4f} train_acc={:.4f} test_loss={:.4f}".format(
+            lr, len(group), mean(group, "hessian_flatness"), mean(group, "base_train_accuracy"), mean(group, "base_test_loss")
+        )
+    )
+
+print("By batch size:")
+for bs in sorted(by_bs, key=int):
+    group = by_bs[bs]
+    print(
+        "  bs={} rows={} flat={:.4f} train_acc={:.4f} test_loss={:.4f}".format(
+            bs, len(group), mean(group, "hessian_flatness"), mean(group, "base_train_accuracy"), mean(group, "base_test_loss")
+        )
+    )
+PY
+}
+
+COMMON_ARGS="\
+  --data_dir ${DATA_ROOT} \
+  --checkpoint_dir ${CHECKPOINT_ROOT} \
+  --checkpoint_subdir_template ${SUBDIR_TEMPLATE} \
+  --freezing_summary_root ${FREEZING_ROOT} \
+  --output_dir ${OUTPUT_ROOT} \
+  --checkpoint_iteration freezing \
+  --freeze_rounding ceil \
+  --definition hessian_topk \
+  --hessian_topk ${HESSIAN_TOPK} \
+  --hessian_layer_index ${HESSIAN_LAYER_INDEX} \
+  --loss_type ce \
+  --max_train_batches -1"
+
+echo "Full freezing-time Hessian flatness job"
+echo "Output root: ${OUTPUT_ROOT}"
+echo "Data root: ${DATA_ROOT}"
+echo "definition=hessian_topk, topK=${HESSIAN_TOPK}, layer_index=${HESSIAN_LAYER_INDEX}"
+
+run_timed "dry_run_main_bs10_to_500" python "${CODE_DIR}/compute_relative_sharpness.py" \
+  ${COMMON_ARGS} \
+  --batch_sizes "${BS_LIST_MAIN[@]}" \
+  --learning_rates "${LR_LIST[@]}" \
+  --repeat_start 1 \
+  --repeat_end 20 \
+  --dry_run
+
+run_timed "dry_run_bs1000" python "${CODE_DIR}/compute_relative_sharpness.py" \
+  ${COMMON_ARGS} \
+  --batch_sizes "${BS_LIST_REF[@]}" \
+  --learning_rates "${LR_LIST[@]}" \
+  --repeat_start 1 \
+  --repeat_end 1 \
+  --dry_run
+
+run_timed "freezing_hessian_flatness_main_bs10_to_500" python "${CODE_DIR}/compute_relative_sharpness.py" \
+  ${COMMON_ARGS} \
+  --batch_sizes "${BS_LIST_MAIN[@]}" \
+  --learning_rates "${LR_LIST[@]}" \
+  --repeat_start 1 \
+  --repeat_end 20
+
+run_timed "freezing_hessian_flatness_bs1000" python "${CODE_DIR}/compute_relative_sharpness.py" \
+  ${COMMON_ARGS} \
+  --batch_sizes "${BS_LIST_REF[@]}" \
+  --learning_rates "${LR_LIST[@]}" \
+  --repeat_start 1 \
+  --repeat_end 1
+
+SUMMARY="${OUTPUT_ROOT}/relative_sharpness_summary.csv"
+require_summary_ok "${SUMMARY}" 847
+
+echo "Freezing-time Hessian flatness job complete at $(date); elapsed $(( $(date +%s) - JOB_START )) seconds"

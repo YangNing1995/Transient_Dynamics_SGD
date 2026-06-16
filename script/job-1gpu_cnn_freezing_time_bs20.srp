@@ -1,0 +1,120 @@
+#!/bin/bash
+#SBATCH -J ft_cnn_bs20
+#SBATCH -p gpu_4l
+#SBATCH -N 1
+#SBATCH -o ../err_out/ft_cnn_bs20_%j.out
+#SBATCH -e ../err_out/ft_cnn_bs20_%j.err
+#SBATCH --no-requeue
+#SBATCH -A tangc_g1
+#SBATCH --qos=tangcg4c
+#SBATCH --gres=gpu:1
+#SBATCH --overcommit
+#SBATCH --mincpus=7
+
+# =====================================================================
+# CNN freezing time: B=20, CIFAR-10, Jaccard-based matched continuation
+# =====================================================================
+
+source /appsnew/source/Tensorflow1.13_Keras2.2_Pytorch1.1_py3.7.3_cuda9.sh
+set -euo pipefail
+
+CODE_DIR=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/Numerical_experiments
+DATA_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/data
+CHECKPOINT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/save_checkpoint_cnn
+OUTPUT_ROOT=/appsnew/home/tangc_pkuhpc/lustre1/YN/pytorch/freezing_time_cnn_jaccard
+
+BS=20
+LR_LIST=(0.05 0.02 0.01 0.005 0.002)
+SUBDIR_TEMPLATE='bs{batch_size}_lr{learning_rate:g}_repeat{repeat}'
+LOSS_TYPE=ce
+
+REPEAT_START=1
+REPEAT_END=10
+
+MODEL_TYPE=cnn
+DATASET=CIFAR10
+HIDDEN_NUM=128
+TRAIN_NUM=-1
+TEST_NUM=-1
+
+mkdir -p "${OUTPUT_ROOT}"
+cd "${CODE_DIR}"
+JOB_START=$(date +%s)
+
+run_timed () {
+  LABEL="$1"
+  shift
+  START=$(date +%s)
+  echo "==== ${LABEL} started at $(date) ===="
+  "$@"
+  STATUS=$?
+  END=$(date +%s)
+  echo "==== ${LABEL} finished at $(date); elapsed $((END - START)) seconds; status ${STATUS} ===="
+  return ${STATUS}
+}
+
+require_summary_ok () {
+  SUMMARY="$1"
+  if [ ! -f "${SUMMARY}" ]; then
+    echo "ERROR: required summary is missing: ${SUMMARY}" >&2
+    exit 1
+  fi
+  python - "$SUMMARY" <<'PY'
+import csv
+import sys
+
+summary_path = sys.argv[1]
+with open(summary_path, newline="") as f:
+    rows = list(csv.DictReader(f))
+
+if not rows:
+    print("ERROR: summary has no rows: {}".format(summary_path), file=sys.stderr)
+    sys.exit(1)
+
+bad = [row for row in rows if row.get("status") != "ok"]
+if bad:
+    print("WARNING: non-ok rows in {}".format(summary_path), file=sys.stderr)
+    for row in bad:
+        print(
+            "  bs={batch_size} lr={learning_rate} repeat={repeat} status={status} message={message}".format(**row),
+            file=sys.stderr,
+        )
+
+total_wall = sum(float(row.get("trajectory_wall_time_sec") or 0.0) for row in rows)
+total_steps = sum(float(row.get("computed_continuation_steps") or 0.0) for row in rows)
+print("Summary: rows={} total_steps={} total_wall_sec={:.1f}".format(len(rows), int(total_steps), total_wall))
+PY
+}
+
+echo "CNN freezing time: B=${BS}, repeats=${REPEAT_START}..${REPEAT_END}"
+echo "Output root: ${OUTPUT_ROOT}"
+
+for LR in "${LR_LIST[@]}"; do
+  CONDITION_TAG=bs${BS}_lr${LR}
+  CONDITION_OUT=${OUTPUT_ROOT}/${CONDITION_TAG}
+
+  EVAL_EVERY=$(python -c "import math; lr=float('${LR}'); print(max(10, int(math.ceil(1.0 / lr))))")
+  MIN_CONTINUATION_STEPS=$(python -c "import math; lr=float('${LR}'); print(max(100, int(math.ceil(5.0 / lr))))")
+  COARSE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(20 if lr <= 0.005 else 10)")
+  FINE_CHECKPOINT_STRIDE=$(python -c "lr=float('${LR}'); print(5 if lr <= 0.005 else 1)")
+
+  echo "--- ${CONDITION_TAG}: eval_every=${EVAL_EVERY}, min_cont=${MIN_CONTINUATION_STEPS}, coarse=${COARSE_CHECKPOINT_STRIDE}, fine=${FINE_CHECKPOINT_STRIDE}"
+  mkdir -p "${CONDITION_OUT}"
+
+  run_timed "jaccard_${CONDITION_TAG}" python "${CODE_DIR}/compute_freezing_time.py"     --model_type ${MODEL_TYPE}     --dataset_name ${DATASET}     --data_dir "${DATA_ROOT}"     --train_num ${TRAIN_NUM}     --test_num ${TEST_NUM}     --hidden_num ${HIDDEN_NUM}     --checkpoint_dir "${CHECKPOINT_ROOT}"     --checkpoint_subdir_template "${SUBDIR_TEMPLATE}"     --batch_sizes ${BS}     --learning_rates ${LR}     --repeat_start ${REPEAT_START}     --repeat_end ${REPEAT_END}     --reference_iteration auto     --continuation_budget_mode to_reference     --continuation_lr training     --loss_type ${LOSS_TYPE}     --coarse_checkpoint_stride ${COARSE_CHECKPOINT_STRIDE}     --fine_checkpoint_stride ${FINE_CHECKPOINT_STRIDE}     --early_stop_loss 0.005     --early_stop_acc 1.0     --early_stop_patience 3     --min_continuation_steps ${MIN_CONTINUATION_STEPS}     --eval_every ${EVAL_EVERY}     --max_continuation_steps 2000     --continuation_micro_batch_size 1000     --output_dir "${CONDITION_OUT}"     --basin_mode jaccard     --jaccard_threshold 0.9   || echo "WARNING: ${CONDITION_TAG} returned non-zero exit code"
+
+done
+
+echo ""
+echo "=== Checking summaries ==="
+for LR in "${LR_LIST[@]}"; do
+  SUMMARY="${OUTPUT_ROOT}/bs${BS}_lr${LR}/freezing_time_summary.csv"
+  if [ -f "${SUMMARY}" ]; then
+    require_summary_ok "${SUMMARY}"
+  else
+    echo "MISSING: ${SUMMARY}"
+  fi
+done
+
+echo ""
+echo "CNN freezing time BS=${BS} complete at $(date); elapsed $(( $(date +%s) - JOB_START )) seconds"

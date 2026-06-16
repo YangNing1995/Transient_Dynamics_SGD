@@ -12,6 +12,14 @@ num_bs = length(bs_list);
 num_lr = length(lr_list);
 num_realizations = 10;
 num_timepoints = 101;
+export_res = 600;
+
+%% Output directory
+script_dir = fileparts(mfilename('fullpath'));
+repo_root = fileparts(script_dir);
+addpath(script_dir);  % for viridis.m
+save_dir = fullfile(repo_root, 'Figures', 'Fig5S_cnn_cifar10');
+if ~exist(save_dir, 'dir'), mkdir(save_dir); end
 
 %% Load data
 Data_dir = 'E:\SynologyDrive\SynologyDrive\Deep learning\Waddington_landscape\Data\save_data_cnn\';
@@ -103,6 +111,10 @@ posy = get(hy, 'Position');
 set(hx, 'Position', posx + [0 0 0]);         % Move closer in y direction
 set(hy, 'Position', posy + [-0.08 0.08 0]);  % Move closer in x direction
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_a_pca_trajectory.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
 %% legend of loss landscape
 % Legend
 colors = [68, 119, 179; 102, 204, 238; 34, 136, 51; 204, 187, 68; 238, 102, 119]/255;
@@ -127,6 +139,10 @@ subplot(6, 2, 12);
 plot(0, 0, 'marker', 'pentagram', 'color', 'k', 'MarkerSize', 12);  
 axis off;
 title('Initial point', 'Fontname', 'Times New Roman', 'Fontsize', 14);
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_a_legend.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% Jaccard similarity
 Realization_index = 1;
@@ -185,7 +201,11 @@ yticklabels(labels);
 % Set font and font size
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 14);
 
-%% Hessian spectrum 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_b_jaccard_matrix.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+%% Hessian spectrum
 % Select learning-rate index and realization index
 lr_index = 3;
 realization_index = 1;
@@ -233,6 +253,9 @@ legend box on;
 % Global axis font settings
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 22);
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_hessian_spectrum.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
 
 %% Calculate basic metrics
 Weights_diff = squeeze(Weights_all(:, :, :, end, :) - Weights_all(:, :, :, 1, :));
@@ -251,170 +274,25 @@ Mean_final_Hessian = mean(Hessian_all(:,:,:,end,1), 3);
 Mean_final_flatness = mean(Flatness(:,:,:,end), 3, 'omitnan');
 Mean_weights_distance = mean(Weights_distance, 3);
 
+% RMS endpoint radius r_theta (across-repeat spread)
+Weights_final = squeeze(Weights_all(:, :, :, end, :));  % [bs, lr, repeat, dim]
+RMS_radius = zeros(num_bs, num_lr);
+for i = 1:num_bs
+    for j = 1:num_lr
+        W = squeeze(Weights_final(i, j, :, :));  % [repeat, dim]
+        centroid = mean(W, 1);                    % [1, dim]
+        RMS_radius(i, j) = sqrt(mean(sum((W - centroid).^2, 2)));
+    end
+end
+
 % Calculate Convergence Probability
 Convergence_probability = sum(Train_acc_all(:,:,:,end)==1, 3)/num_realizations;
 
-% Calculate Min/Max stats
-Min_final_train_loss = min(Train_loss_all(:,:,:,end), [], 3);
-Min_final_test_loss = min(Test_loss_all(:,:,:,end), [], 3);
-Max_final_train_acc = max(Train_acc_all(:,:,:,end), [], 3);
+% Calculate Max stats
 Max_final_test_acc = max(Test_acc_all(:,:,:,end), [], 3);
-Max_final_Hessian = max(Hessian_all(:,:,:,end,1), [], 3);
 Max_final_flatness = max(Flatness(:,:,:,end), [], 3);
 
-%% Mean Jaccard similarity
-Wrong_indices_final = Wrong_indices_all(:, :, :, end);
-Jaccard_similarities = zeros(length(bs_list), length(lr_list), num_realizations, num_realizations);
-
-for m = 1:length(bs_list)
-    for n = 1:length(lr_list)
-        for i = 1:num_realizations
-            for j = 1:num_realizations
-                if i ~= j  
-                    Jaccard_similarities(m, n, i, j) = jaccard_similarity(Wrong_indices_final{m,n,i}, Wrong_indices_final{m,n,j});
-                else
-                    Jaccard_similarities(m, n, i, j) = 1;  
-                end
-            end
-        end
-    end
-end
-
-Temp_jaccard_similarities = reshape(Jaccard_similarities, [5, 5, num_realizations^2]);
-Mean_jaccard_similarities = squeeze(sum(Temp_jaccard_similarities, 3) - num_realizations)/(num_realizations*(num_realizations-1));
-
-figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
-imagesc(Mean_jaccard_similarities)
-set(gca, 'YDir', 'normal');
-axis square
-colormap(viridis)
-cb = colorbar;
-cb.Label.String = '$\langle Sim_J \rangle$';
-cb.Label.Units = 'normalized';
-cb.Label.Interpreter = 'latex';
-cb.Label.FontSize = 18;
-cb.Label.Rotation = 0; 
-cb.Label.Position = [0.5, 1.1, 0]; 
-cb.Ticks = [0.45 0.55 0.65 0.75];
-xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
-ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:1:5)
-yticklabels(string(bs_list));
-set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
-
-% -------- Overlay Convergence_probability information --------
-hold on; % Hold layer
-[m, n] = size(Convergence_probability);
-for i = 1:m
-    for j = 1:n
-        % If you want to gray out or shade specific areas (where convergence prob is 0)
-        if Convergence_probability(i,j) == 0
-            % Draw gray rectangle (semi-transparent)
-            patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
-                  [i-0.5 i-0.5 i+0.5 i+0.5], ...
-                  [0.5 0.5 0.5], ...        % Gray RGB color
-                  'EdgeColor', 'none');     % No edge color
-        end
-    end
-end
-hold off;
-
-%% Max final test accuracy 
-figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
-imagesc(Max_final_test_acc) 
-set(gca, 'YDir', 'normal');
-axis square
-colormap(viridis)
-cb = colorbar;
-cb.Label.String = '$\max(Acc_\mathrm{test})$';
-cb.Label.Interpreter = 'latex';
-cb.Label.Units = 'normalized';
-cb.Label.FontSize = 18;
-cb.Label.Rotation = 0; 
-cb.Label.Position = [0.5, 1.1, 0]; 
-xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
-ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:1:5)
-yticklabels(string(bs_list));
-set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
-
-% -------- Overlay Convergence_probability information --------
-hold on; % Hold layer
-[m, n] = size(Convergence_probability);
-for i = 1:m
-    for j = 1:n
-        % If you want to gray out or shade specific areas (where convergence prob is 0)
-        if Convergence_probability(i,j) == 0
-            % Draw gray rectangle (semi-transparent)
-            patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
-                  [i-0.5 i-0.5 i+0.5 i+0.5], ...
-                  [0.5 0.5 0.5], ...        % Gray RGB color
-                  'EdgeColor', 'none');     % No edge color
-        end
-    end
-end
-hold off;
-
-%% Max final flatness
-figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
-imagesc(Max_final_flatness) 
-set(gca, 'YDir', 'normal');
-axis square
-colormap(viridis)
-cb = colorbar;
-cb.Label.String = '$\max(F)$';
-cb.Label.Interpreter = 'latex';
-cb.Label.Units = 'normalized';
-cb.Label.FontSize = 18;
-cb.Label.Rotation = 0; 
-cb.Label.Position = [0.5, 1.1, 0]; 
-% cb.Ticks = [2, 3, 4, 5];
-xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
-ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:1:5)
-yticklabels(string(bs_list));
-set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
-
-% -------- Overlay Convergence_probability information --------
-[m, n] = size(Convergence_probability);
-for i = 1:m
-    for j = 1:n
-        % If you want to gray out or shade specific areas
-        if Convergence_probability(i,j) == 0
-            % Draw gray rectangle (semi-transparent)
-            patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
-                  [i-0.5 i-0.5 i+0.5 i+0.5], ...
-                  [0.5 0.5 0.5], ...        % Gray RGB color
-                  'EdgeColor', 'none');     % No edge color
-        end
-    end
-end
-hold off;
-
-%% Convergence probability
-figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
-imagesc(Convergence_probability) 
-set(gca, 'YDir', 'normal');
-axis square
-colormap(viridis)
-cb = colorbar;
-cb.Label.String = '$P_\mathrm{conv}$'; 
-cb.Label.Interpreter = 'latex';
-cb.Label.Units = 'normalized';
-cb.Label.FontSize = 18;
-cb.Label.Rotation = 0; 
-cb.Label.Position = [0.5, 1.1, 0]; 
-xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
-ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:1:5)
-yticklabels(string(bs_list));
-set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
-
-%% Analyze freeze time (L_c = 0.1)
+%% ===== Panel (c): Freezing time (loss proxy, L_c = 0.1) =====
 % Define the single threshold manually here
 L_c = 0.1; 
 
@@ -471,7 +349,7 @@ colormap(viridis)
 
 % Setup Colorbar
 cb = colorbar;
-cb.Label.String = '$\eta\langle t_\mathrm{freeze} \rangle$';
+cb.Label.String = '$\eta\langle t_f \rangle$';
 cb.Label.Units = 'normalized';
 cb.Label.Interpreter = 'latex';
 cb.Label.FontSize = 18;
@@ -480,9 +358,10 @@ cb.Label.Position = [0.5, 1.1, 0];
 
 % Axis Labels
 xlabel('Learning rate $\eta$', 'Interpreter','latex')
-xticklabels(string(lr_list));
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
 ylabel('Batch size $B$', 'Interpreter','latex')
-yticks(1:5)
+yticks(1:num_bs);
 yticklabels(string(bs_list));
 set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
 
@@ -495,14 +374,131 @@ for i = 1:m
             % Draw gray rectangle (semi-transparent)
             patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
                   [i-0.5 i-0.5 i+0.5 i+0.5], ...
-                  [0.5 0.5 0.5], ...        % Gray RGB color
-                  'EdgeColor', 'none');     % No edge color
+                  [0.70 0.70 0.70], 'EdgeColor', 'none');
         end
     end
 end
 hold off;
 
-%% Mean train loss 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_c_freezing_time.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+%% ===== Panel (d): RMS endpoint radius r_theta =====
+figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
+imagesc(log10(RMS_radius))
+set(gca, 'YDir', 'normal');
+axis square
+colormap(viridis)
+cb = colorbar;
+cb.Label.String = '$r_\theta$';
+cb.Label.Interpreter = 'latex';
+cb.Label.Units = 'normalized';
+cb.Label.FontSize = 18;
+cb.Label.Rotation = 0;
+cb.Label.Position = [0.5, 1.1, 0];
+xlabel('Learning rate $\eta$', 'Interpreter','latex')
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
+ylabel('Batch size $B$', 'Interpreter','latex')
+yticks(1:num_bs);
+yticklabels(string(bs_list));
+set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
+
+% Gray overlay for divergent cells
+hold on;
+for i = 1:num_bs
+    for j = 1:num_lr
+        if Convergence_probability(i,j) == 0
+            patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
+                  [i-0.5 i-0.5 i+0.5 i+0.5], ...
+                  [0.70 0.70 0.70], 'EdgeColor', 'none');
+        end
+    end
+end
+hold off;
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_d_rms_radius.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+%% ===== Panel (e): Mean final flatness <F> =====
+figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
+imagesc(Mean_final_flatness)
+set(gca, 'YDir', 'normal');
+axis square
+colormap(viridis)
+cb = colorbar;
+cb.Label.String = '$\langle F \rangle$';
+cb.Label.Interpreter = 'latex';
+cb.Label.Units = 'normalized';
+cb.Label.FontSize = 18;
+cb.Label.Rotation = 0;
+cb.Label.Position = [0.5, 1.1, 0];
+xlabel('Learning rate $\eta$', 'Interpreter','latex')
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
+ylabel('Batch size $B$', 'Interpreter','latex')
+yticks(1:num_bs);
+yticklabels(string(bs_list));
+set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
+
+% Gray overlay for divergent cells
+hold on;
+for i = 1:num_bs
+    for j = 1:num_lr
+        if Convergence_probability(i,j) == 0
+            patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
+                  [i-0.5 i-0.5 i+0.5 i+0.5], ...
+                  [0.70 0.70 0.70], 'EdgeColor', 'none');
+        end
+    end
+end
+hold off;
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_e_mean_flatness.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+%% ===== Panel (f): Max test accuracy =====
+figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
+imagesc(Max_final_test_acc)
+set(gca, 'YDir', 'normal');
+axis square
+colormap(viridis)
+cb = colorbar;
+cb.Label.String = '$\max(Acc_\mathrm{test})$';
+cb.Label.Interpreter = 'latex';
+cb.Label.Units = 'normalized';
+cb.Label.FontSize = 18;
+cb.Label.Rotation = 0;
+cb.Label.Position = [0.5, 1.1, 0];
+xlabel('Learning rate $\eta$', 'Interpreter','latex')
+xticks(1:num_lr);
+xticklabels(compose('%g', lr_list));
+ylabel('Batch size $B$', 'Interpreter','latex')
+yticks(1:num_bs);
+yticklabels(string(bs_list));
+set(gca,'Fontname', 'Times New Roman',  'Fontsize', 18);
+
+% Gray overlay for divergent cells
+hold on;
+for i = 1:num_bs
+    for j = 1:num_lr
+        if Convergence_probability(i,j) == 0
+            patch([j-0.5 j+0.5 j+0.5 j-0.5], ...
+                  [i-0.5 i-0.5 i+0.5 i+0.5], ...
+                  [0.70 0.70 0.70], 'EdgeColor', 'none');
+        end
+    end
+end
+hold off;
+
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_f_max_test_acc.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+%% ===== Panel (g): Mean train loss =====
 lr = 2;  % lr=0.005
 max_iteration = 1000/(lr_list(lr));
 iterations_list = linspace(0, max_iteration, num_timepoints);
@@ -538,6 +534,10 @@ legend(h, 'Location', 'northeast',...
 legend box on
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 22, 'Yscale', 'log');
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_g_mean_train_loss.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
 %% Mean flatness
 lr = 2;  % lr=0.005
 max_iteration = 1000/(lr_list(lr));
@@ -572,6 +572,11 @@ legend(h, 'Location', 'northwest',...
 legend box on
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 22);
 
+set(gcf, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+drawnow; print(gcf, fullfile(save_dir, 'Fig5S_h_mean_flatness_time.png'), '-dpng', sprintf('-r%d', export_res));
+close(gcf);
+
+fprintf('All Fig S5 panels saved to:\n  %s\n', save_dir);
 
 %% Define Jaccard similarity
 function similarity = jaccard_similarity(list1, list2)

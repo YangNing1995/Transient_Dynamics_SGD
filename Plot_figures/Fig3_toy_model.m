@@ -1,6 +1,19 @@
 % Simulation results of the two-valley toy model
 % =========================================================================
 
+%% Paths and settings
+script_dir = fileparts(mfilename('fullpath'));
+repo_root = fullfile(script_dir, '..');
+out_dir = fullfile(repo_root, 'Figures', 'Fig3_toy_model');
+export_resolution = 600;
+
+addpath(script_dir);  % for viridis.m
+addpath(fullfile(repo_root, 'Plot_figures'));  % for mycolormap.mat fallback
+
+if ~exist(out_dir, 'dir')
+    mkdir(out_dir);
+end
+
 % -------------------------------------------------------------------------
 % Model Parameters & Function Definitions
 % -------------------------------------------------------------------------
@@ -42,7 +55,7 @@ Z_min_plus = L(x_min_plus, y);
 Z_min_minus = L(x_min_minus, y);
 
 % Plot surface with contours
-figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
+figB = figure('unit','points','PaperUnits','points', 'position', [100 100 400 400]);
 
 % surfc plots both the 3D surface and the contour plot underneath
 surfc(X, Y, Z, 'EdgeColor', 'none');   
@@ -65,14 +78,16 @@ view(-145, 31) % Set view angle
 set(gca, 'Fontname', 'Times New Roman', 'Fontsize', 18, ...
     'ZScale', 'log', 'XDir', 'reverse', 'ColorScale', 'log');
 
+save_fig3_png(figB, fullfile(out_dir, 'Fig3B_loss_landscape.png'), export_resolution);
+
 %% Convergence probability to the flat valley (varying hyperparameters)
 % Load custom colormap and simulation results
 % Run ../Two_valleys_model/Phase_diagram.m to save the results
-load('mycolormap.mat') 
-load('../Two_valleys_model/result_PhsDgm_Ld1_yd100_x10.8_x20.65.mat')   % Cov ~ H
-% load('../Two_valleys_model/result_PhsDgm_Ld1_yd100_x10.8_x20.65_H2.mat') % Cov ~ H^2
+load(fullfile(repo_root, 'Plot_figures', 'mycolormap.mat'))
+load(fullfile(repo_root, 'Two_valleys_model', 'result_PhsDgm_Ld1_yd100_x10.8_x20.65.mat'))   % Cov ~ H
+% load(fullfile(repo_root, 'Two_valleys_model', 'result_PhsDgm_Ld1_yd100_x10.8_x20.65_H2.mat')) % Cov ~ H^2
 
-figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
+figC = figure('unit','points','PaperUnits','points', 'position', [100 100 400 400]);
 
 % Plot heatmap of convergence probability (final_position)
 imagesc(learning_rate_list, noise_strength_list, final_position');
@@ -105,11 +120,13 @@ box on
 set(gca, 'XScale', 'log', 'YScale', 'log', 'YDir', 'normal', ...
     'Fontname', 'Times New Roman', 'Fontsize', 18);
 
+save_fig3_png(figC, fullfile(out_dir, 'Fig3C_flat_probability.png'), export_resolution);
+
 %% Freezing time (varying hyperparameters)
 % Rescale freezing time by learning rate: t_rescaled = eta * t_mean
 freezing_time_rescaled = learning_rate_list' .* freezing_time_mean;
 
-figure('unit','points','PaperUnits','points', 'position', [100 100 400 400])
+figD = figure('unit','points','PaperUnits','points', 'position', [100 100 400 400]);
 
 % Plot heatmap of rescaled freezing time
 imagesc(learning_rate_list, noise_strength_list, freezing_time_rescaled');
@@ -131,7 +148,7 @@ ylim([min(noise_strength_list)/1.13, max(noise_strength_list)*1.13])
 % yticks([1e-3 1e-2 1e-1])
 
 % Add label for the colorbar variable
-text(1.07, 1.06, '$\eta \langle t_\mathrm{freeze} \rangle$', 'Interpreter', 'LaTex', ...
+text(1.07, 1.06, '$\eta \langle t_f \rangle$', 'Interpreter', 'LaTex', ...
     'Units', 'normalized', 'HorizontalAlignment', 'center', 'Fontsize', 20)
 
 colorbar
@@ -141,3 +158,16 @@ box on
 % Set log scale for axes and color
 set(gca, 'XScale', 'log', 'YScale', 'log', 'YDir', 'normal', ...
     'Fontname', 'Times New Roman', 'Fontsize', 18, 'ColorScale', 'log');
+
+save_fig3_png(figD, fullfile(out_dir, 'Fig3D_freezing_time.png'), export_resolution);
+
+fprintf('Exported Fig3 toy-model panels to %s\n', out_dir);
+
+
+function save_fig3_png(fig_handle, output_file, resolution)
+    % Keep a consistent full canvas for manual assembly.
+    set(fig_handle, 'Color', 'w', 'PaperPositionMode', 'auto', 'InvertHardcopy', 'off');
+    set(findall(fig_handle, 'Type', 'axes'), 'Color', 'w');
+    drawnow;
+    print(fig_handle, output_file, '-dpng', sprintf('-r%d', resolution));
+end

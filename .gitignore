@@ -256,3 +256,10 @@ freezing_time_training_lr_pilot_r1_ce/
 freezing_time_training_lr_r1-5_ce/
 PRX_revison/Figures_SI/
 fig1_endpoint_stats_bs50_lr0.05_ce_uniform_grid/
+
+# Regenerable two-valley simulation data (recreate via Two_valleys_model/*.m)
+Two_valleys_model/Fig4_simulation_data.mat
+Two_valleys_model/P_right_eta*.mat
+
+# Generated figure outputs (recreate by running Plot_figures/*.m)
+Figures/
